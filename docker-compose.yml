@@ -1,0 +1,44 @@
+services:
+  redakt:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./src:/app/src
+    environment:
+      - REDAKT_BASE_DIR=/app/src/redakt
+      - REDAKT_PRESIDIO_ANALYZER_URL=http://presidio-analyzer:5001
+      - REDAKT_PRESIDIO_ANONYMIZER_URL=http://presidio-anonymizer:5001
+    depends_on:
+      presidio-analyzer:
+        condition: service_healthy
+      presidio-anonymizer:
+        condition: service_healthy
+
+  presidio-analyzer:
+    build:
+      context: ./presidio/presidio-analyzer
+      args:
+        - NLP_CONF_FILE=presidio_analyzer/conf/spacy_multilingual.yaml
+    environment:
+      - PORT=5001
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5001/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  presidio-anonymizer:
+    build:
+      context: ./presidio/presidio-anonymizer
+    environment:
+      - PORT=5001
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5001/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s

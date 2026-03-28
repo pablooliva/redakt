@@ -1,0 +1,21 @@
+{% if error %}
+<div class="result error">
+    <p>{{ error }}</p>
+</div>
+{% else %}
+<div class="result {{ 'pii-found' if has_pii else 'no-pii' }}">
+    {% if has_pii %}
+        <h2>PII Detected</h2>
+        <p><strong>{{ entity_count }}</strong> entit{{ "y" if entity_count == 1 else "ies" }} found.</p>
+        <ul>
+            {% for entity in entities_found %}
+            <li>{{ entity }}</li>
+            {% endfor %}
+        </ul>
+    {% else %}
+        <h2>No PII Detected</h2>
+        <p>No personally identifiable information was found in the text.</p>
+    {% endif %}
+    <p class="meta">Language: {{ language_detected }}</p>
+</div>
+{% endif %}
