@@ -61,32 +61,48 @@
 
 ---
 
-## Implementation Phase — READY TO START
+## Implementation Phase — COMPLETE
 
-### Implementation Priorities
+### Feature: PII Detection Endpoint & Project Scaffolding
 
-1. Project scaffolding (pyproject.toml, Dockerfile, docker-compose.yml)
-2. Presidio client service (services/presidio.py)
-3. Language detection service (services/language.py)
-4. Config, models, detect router, health router
-5. Audit logging service
-6. FastAPI app (main.py with lifespan)
-7. Web UI (templates + static)
-8. Tests
+- **Specification:** `SDD/requirements/SPEC-001-pii-detection.md`
+- **Implementation:** `SDD/prompts/PROMPT-001-pii-detection-2026-03-28.md`
+- **Summary:** `SDD/prompts/implementation-complete/IMPLEMENTATION-SUMMARY-001-2026-03-28_12-00-00.md`
+- **Critical Review:** `SDD/reviews/CRITICAL-IMPL-pii-detection-20260328.md`
+- **Completion:** 2026-03-28
 
-### Critical Implementation Notes
+### Final Status
 
-- Custom spaCy config needed: `de_core_news_lg` replaces default `de_core_news_md`
-- Presidio default port is 3000 — docker-compose must override to 5001
-- Separate HTMX route (`/detect/submit`) from API route (`/api/detect`)
-- `HX-Request` header for audit source tagging
+- All functional requirements (REQ-001–009): Implemented
+- All non-functional requirements (PERF, SEC, UX): Met
+- All edge cases (EDGE-001–010): Handled
+- All failure scenarios (FAIL-001–004): Implemented
+- All tests: 42 passing
+- Critical review: 2 HIGH + 3 MEDIUM + 4 LOW findings — all resolved
 
-### Known Risks
+### Implementation Metrics
 
-- RISK-001: spaCy NER may be less accurate than transformers for German names. Upgrade path documented.
-- RISK-002: lingua-py adds ~30MB to image. Acceptable tradeoff.
-- RISK-003: Presidio startup time — mitigated by generous health check config.
+- Duration: 1 day (research through completion)
+- Files created: 29 (19 source + 7 test + 3 config)
+- Files modified: 1 (presidio spacy_multilingual.yaml)
+- Test count: 42 unit tests across 5 test files
 
-### Next Steps
+### Deployment
 
-Planning phase complete. Ready for `/implementation-start`.
+```bash
+docker compose up --build
+# Redakt: http://localhost:8000
+# Web UI: http://localhost:8000/detect
+# API docs: http://localhost:8000/docs
+```
+
+---
+
+## Phase Transition
+
+Implementation phase COMPLETE for PII Detection.
+
+To start next feature:
+- Research new feature: `/research-start`
+- Plan another feature: `/planning-start` (if research exists)
+- Implement another feature: `/implementation-start` (if spec exists)
