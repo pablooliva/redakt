@@ -257,13 +257,7 @@ docker compose up --build
 |  docker-compose.yml                                              |
 |                                                                  |
 |  +-------------------+                                           |
-|  |  redakt-frontend  |  Web UI (serves static assets)            |
-|  |  :3000            |                                           |
-|  +--------+----------+                                           |
-|           |                                                      |
-|           v                                                      |
-|  +-------------------+                                           |
-|  |  redakt-api       |  Redakt backend                           |
+|  |  redakt           |  FastAPI backend + Jinja2/HTMX frontend   |
 |  |  :8000            |  (web app + REST API for AI agents)       |
 |  +---+----------+----+                                           |
 |      |          |                                                |
@@ -280,16 +274,17 @@ docker compose up --build
 
 | Service | Description | Port |
 |---|---|---|
-| `redakt-frontend` | Web UI — static frontend served by nginx or similar | 3000 |
-| `redakt-api` | Redakt backend — orchestrates Presidio, serves the REST API (stateless, no PII persisted) | 8000 |
+| `redakt` | FastAPI backend serving both the web UI (Jinja2 + HTMX) and REST API. Stateless, no PII persisted. | 8000 |
 | `presidio-analyzer` | Presidio's PII detection service (from `presidio/` subdir) | 5002 |
 | `presidio-anonymizer` | Presidio's anonymization service (from `presidio/` subdir) | 5001 |
 
-Presidio services are internal — only `redakt-api` talks to them. The frontend and AI agents both talk to `redakt-api`.
+Presidio services are internal — only `redakt` talks to them. Browsers and AI agents both connect to `redakt` on port 8000.
 
 ### NLP engine choice
 
-The Presidio Analyzer container uses the transformers-based NER model (`StanfordAIMI/stanford-deidentifier-base`) by default, built from `presidio/Dockerfile.transformers`. This can be swapped for the lighter spaCy-based build during development.
+The Presidio Analyzer container uses the **spaCy multilingual** NLP engine (config: `presidio/presidio-analyzer/presidio_analyzer/conf/spacy_multilingual.yaml`) with models for English (`en_core_web_lg`) and German (`de_core_news_lg`). This provides out-of-the-box support for the two primary languages in the enterprise. The 13 German-specific regex recognizers (tax ID, passport, KFZ plates, etc.) are also active.
+
+A multilingual transformer model (e.g., `Davlan/xlm-roberta-base-ner-hf`) can be configured later if spaCy's NER accuracy is insufficient.
 
 ---
 
