@@ -1,0 +1,23 @@
+{% if error %}
+<div class="result error">
+    <p>{{ error }}</p>
+</div>
+{% else %}
+<div id="anonymize-output" data-mappings='{{ mappings_json }}'>
+    <h2>Anonymized Text</h2>
+    <pre id="anonymized-text">{{ anonymized_text }}</pre>
+    <button id="copy-btn" type="button">Copy to clipboard</button>
+    <details>
+        <summary>Mapping ({{ mapping_count }} entr{{ "y" if mapping_count == 1 else "ies" }})</summary>
+        <table>
+            <thead><tr><th>Placeholder</th><th>Original</th></tr></thead>
+            <tbody>
+                {% for placeholder, original in mappings.items() %}
+                <tr><td>{{ placeholder }}</td><td>{{ original }}</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </details>
+    <p class="meta">Language: {{ language_detected }}</p>
+</div>
+{% endif %}

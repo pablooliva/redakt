@@ -5,13 +5,16 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}Redakt{% endblock %}</title>
     <link rel="stylesheet" href="/static/style.css">
-    <script src="https://unpkg.com/htmx.org@2.0.4"></script>
+    <script src="https://unpkg.com/htmx.org@2.0.4"
+            integrity="sha384-HGfztofotfshcF7+8n44JQL2oJmowVChPTg48S+jvZoztPfvwD79OC/LTtG6dMp+"
+            crossorigin="anonymous"></script>
 </head>
 <body>
     <header>
         <nav>
             <a href="/" class="logo">Redakt</a>
             <a href="/detect">Detect PII</a>
+            <a href="/anonymize">Anonymize</a>
             <a href="/docs">API Docs</a>
         </nav>
     </header>

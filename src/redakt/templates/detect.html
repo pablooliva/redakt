@@ -8,8 +8,7 @@
 <form hx-post="/detect/submit" hx-target="#results" hx-indicator="#spinner">
     <div class="form-group">
         <label for="text">Text to analyze</label>
-        <textarea id="text" name="text" rows="8" placeholder="Paste text here..."
-                  oninput="document.getElementById('results').innerHTML = ''"></textarea>
+        <textarea id="text" name="text" rows="8" placeholder="Paste text here..."></textarea>
     </div>
 
     <div class="form-group">
@@ -35,4 +34,6 @@
 </form>
 
 <div id="results"></div>
+
+<script src="/static/detect.js"></script>
 {% endblock %}

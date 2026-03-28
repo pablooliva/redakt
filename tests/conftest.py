@@ -26,8 +26,16 @@ def mock_presidio_health():
 
 @pytest.fixture
 def mock_detect_language():
-    """Mock the language detection service."""
+    """Mock the language detection service in the detect router."""
     with patch("redakt.routers.detect.detect_language", new_callable=AsyncMock) as mock:
+        mock.return_value = "en"
+        yield mock
+
+
+@pytest.fixture
+def mock_anon_detect_language():
+    """Mock the language detection service in the anonymize router."""
+    with patch("redakt.routers.anonymize.detect_language", new_callable=AsyncMock) as mock:
         mock.return_value = "en"
         yield mock
 

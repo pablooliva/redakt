@@ -1,3 +1,4 @@
+import json
 from unittest.mock import AsyncMock, patch
 
 import httpx
@@ -69,3 +70,99 @@ class TestDetectPage:
             )
         assert resp.status_code == 200
         assert "timed out" in resp.text
+
+
+class TestAnonymizePage:
+    def test_anonymize_page_renders(self, client):
+        resp = client.get("/anonymize")
+        assert resp.status_code == 200
+        assert "PII Anonymization" in resp.text
+        assert "deanonymize.js" in resp.text
+        assert "deanonymize-section" in resp.text
+
+    def test_anonymize_submit_with_pii(self, client, mock_presidio_analyze, mock_anon_detect_language):
+        text = "Contact John Smith at john@example.com please."
+        mock_presidio_analyze.return_value = [
+            {"entity_type": "PERSON", "start": 8, "end": 18, "score": 0.85},
+            {"entity_type": "EMAIL_ADDRESS", "start": 22, "end": 38, "score": 1.0},
+        ]
+        resp = client.post(
+            "/anonymize/submit",
+            data={"text": text, "language": "en"},
+        )
+        assert resp.status_code == 200
+        assert "Anonymized Text" in resp.text
+        assert "&lt;PERSON_1&gt;" in resp.text
+        assert "&lt;EMAIL_ADDRESS_1&gt;" in resp.text
+        assert "data-mappings" in resp.text
+        assert "Copy to clipboard" in resp.text
+        # Verify mapping table
+        assert "Mapping (2 entries)" in resp.text
+
+    def test_anonymize_submit_no_pii(self, client, mock_presidio_analyze, mock_anon_detect_language):
+        mock_presidio_analyze.return_value = []
+        resp = client.post(
+            "/anonymize/submit",
+            data={"text": "Weather is nice", "language": "en"},
+        )
+        assert resp.status_code == 200
+        assert "Anonymized Text" in resp.text
+        assert "Mapping (0 entries)" in resp.text
+
+    def test_anonymize_submit_empty_text(self, client):
+        resp = client.post("/anonymize/submit", data={"text": "", "language": "auto"})
+        assert resp.status_code == 200
+        # Empty text returns unchanged with empty mapping
+        assert "Mapping (0 entries)" in resp.text
+
+    def test_anonymize_submit_text_too_long(self, client):
+        long_text = "a" * 512_001
+        resp = client.post("/anonymize/submit", data={"text": long_text, "language": "en"})
+        assert resp.status_code == 200
+        assert "exceeds maximum length" in resp.text
+
+    def test_anonymize_submit_presidio_unavailable(self, client, mock_anon_detect_language):
+        with patch(
+            "redakt.services.presidio.PresidioClient.analyze",
+            new_callable=AsyncMock,
+            side_effect=httpx.ConnectError("Connection refused"),
+        ):
+            resp = client.post(
+                "/anonymize/submit",
+                data={"text": "John Smith", "language": "en"},
+            )
+        assert resp.status_code == 200
+        assert "starting up" in resp.text
+
+    def test_anonymize_submit_presidio_timeout(self, client, mock_anon_detect_language):
+        with patch(
+            "redakt.services.presidio.PresidioClient.analyze",
+            new_callable=AsyncMock,
+            side_effect=httpx.ReadTimeout("Timeout"),
+        ):
+            resp = client.post(
+                "/anonymize/submit",
+                data={"text": "John Smith", "language": "en"},
+            )
+        assert resp.status_code == 200
+        assert "timed out" in resp.text
+
+    def test_anonymize_submit_mappings_json_roundtrip(self, client, mock_presidio_analyze, mock_anon_detect_language):
+        """Verify data-mappings attribute contains valid JSON after HTML entity decoding."""
+        text = "Contact John Smith please."
+        mock_presidio_analyze.return_value = [
+            {"entity_type": "PERSON", "start": 8, "end": 18, "score": 0.85},
+        ]
+        resp = client.post(
+            "/anonymize/submit",
+            data={"text": text, "language": "en"},
+        )
+        assert resp.status_code == 200
+        # The data-mappings value is HTML-escaped by Jinja2; extract and decode
+        import html
+        import re
+        match = re.search(r"data-mappings='([^']*)'", resp.text)
+        assert match is not None, "data-mappings attribute not found"
+        decoded = html.unescape(match.group(1))
+        mappings = json.loads(decoded)
+        assert mappings["<PERSON_1>"] == "John Smith"

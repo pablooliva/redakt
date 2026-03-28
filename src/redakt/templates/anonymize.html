@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% block title %}Anonymize - Redakt{% endblock %}
+
+{% block content %}
+<h1>PII Anonymization</h1>
+<p>Paste text below to anonymize PII. Copy the result into your AI tool, then paste the response back to restore original values.</p>
+
+<section id="anonymize-section">
+    <h2>Anonymize</h2>
+    <form hx-post="/anonymize/submit" hx-target="#anonymize-results" hx-indicator="#spinner">
+        <div class="form-group">
+            <label for="text">Text to anonymize</label>
+            <textarea id="text" name="text" rows="8" placeholder="Paste text containing PII here..."></textarea>
+        </div>
+
+        <div class="form-group">
+            <label>Language</label>
+            <div class="toggle-group">
+                <label class="toggle">
+                    <input type="radio" name="language" value="auto" checked>
+                    <span>Auto</span>
+                </label>
+                <label class="toggle">
+                    <input type="radio" name="language" value="en">
+                    <span>English</span>
+                </label>
+                <label class="toggle">
+                    <input type="radio" name="language" value="de">
+                    <span>German</span>
+                </label>
+            </div>
+        </div>
+
+        <button type="submit">Anonymize</button>
+        <span id="spinner" class="htmx-indicator">Anonymizing...</span>
+    </form>
+
+    <div id="anonymize-results"></div>
+</section>
+
+<section id="deanonymize-section" class="disabled">
+    <h2>Deanonymize</h2>
+    <p>Paste the AI response below to restore original PII values.</p>
+
+    <div class="form-group">
+        <label for="deanonymize-input">AI response text</label>
+        <textarea id="deanonymize-input" rows="8" placeholder="Paste AI response containing placeholders here..." disabled></textarea>
+    </div>
+
+    <button id="deanonymize-btn" disabled>Deanonymize</button>
+    <button id="clear-mapping-btn" disabled>Clear mapping</button>
+
+    <div id="deanonymize-output"></div>
+</section>
+
+<script src="/static/deanonymize.js"></script>
+{% endblock %}

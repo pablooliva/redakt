@@ -32,12 +32,7 @@ def setup_logging(log_level: str = "WARNING") -> None:
     app_logger.setLevel(getattr(logging, log_level.upper(), logging.WARNING))
 
 
-def log_detection(
-    entity_count: int,
-    entity_types: list[str],
-    language: str,
-    source: str,
-) -> None:
+def _emit_audit(action: str, entity_count: int, entity_types: list[str], language: str, source: str) -> None:
     audit_logger = logging.getLogger("redakt.audit")
     record = audit_logger.makeRecord(
         name="redakt.audit",
@@ -49,10 +44,28 @@ def log_detection(
         exc_info=None,
     )
     record.audit_data = {
-        "action": "detect",
+        "action": action,
         "entity_count": entity_count,
         "entity_types": entity_types,
         "language": language,
         "source": source,
     }
     audit_logger.handle(record)
+
+
+def log_detection(
+    entity_count: int,
+    entity_types: list[str],
+    language: str,
+    source: str,
+) -> None:
+    _emit_audit("detect", entity_count, entity_types, language, source)
+
+
+def log_anonymization(
+    entity_count: int,
+    entity_types: list[str],
+    language: str,
+    source: str,
+) -> None:
+    _emit_audit("anonymize", entity_count, entity_types, language, source)
