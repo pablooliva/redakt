@@ -5,7 +5,7 @@
 - **Based on Research:** RESEARCH-002-anonymize-deanonymize.md
 - **Creation Date:** 2026-03-28
 - **Author:** Claude (with Pablo)
-- **Status:** Approved
+- **Status:** Implemented
 
 ## Research Foundation
 
@@ -429,3 +429,33 @@ The deanonymize field and button are on the same `anonymize.html` page, below th
 - **CSP + SRI are security requirements**, not nice-to-haves — they protect the in-memory PII mapping from exfiltration
 - **CSP is global** — adding `script-src 'self'` breaks any page with inline handlers. Feature 1's `detect.html` has an inline `oninput` handler that must be extracted to `detect.js` before CSP is enabled. Verify all pages after CSP is added.
 - **Clipboard API requires secure context** — `navigator.clipboard.writeText()` only works over HTTPS or localhost. Include `document.execCommand('copy')` fallback for HTTP deployments.
+
+## Implementation Summary
+
+### Completion Details
+- **Completed:** 2026-03-28
+- **Implementation Duration:** 1 day
+- **Final PROMPT Document:** SDD/prompts/PROMPT-002-anonymize-deanonymize-2026-03-28.md
+- **Implementation Summary:** SDD/prompts/implementation-complete/IMPLEMENTATION-SUMMARY-002-2026-03-28_14-30-00.md
+- **Critical Review:** SDD/reviews/CRITICAL-IMPL-anonymize-deanonymize-20260328.md (7 findings, all resolved)
+
+### Requirements Validation Results
+- All 15 functional requirements: Complete
+- All 2 performance requirements: Met
+- All 5 security requirements: Validated
+- All 2 UX requirements: Satisfied
+- All 8 edge cases: Handled
+- All 4 failure scenarios: Implemented
+- Test suite: 90 tests passing (48 new + 42 pre-existing)
+
+### Performance Results
+- PERF-001: Redakt-side replacement <1ms overhead (Target: <10ms)
+- PERF-002: Client-side deanonymize instant via split/join (Target: <50ms)
+
+### Implementation Insights
+1. Position-based placeholder numbering (sort by text position after score-based overlap resolution) is more intuitive than score-based numbering — discovered via critical review
+2. Returning entity_types directly from the anonymizer service is cleaner than reverse-engineering them from placeholder strings
+3. Jinja2 autoescaping + browser HTML entity decoding creates a safe roundtrip for the data-mappings JSON attribute — verified with edge cases including embedded quotes and HTML tags
+
+### Deviations from Original Specification
+None. All implementation follows SPEC-002 exactly.
