@@ -148,3 +148,60 @@ To start next feature:
 - Research new feature: `/sdd:research-start`
 - Plan another feature: `/sdd:planning-start` (if research exists)
 - Implement another feature: `/sdd:implementation-start` (if spec exists)
+
+---
+
+## RESEARCH-003: Document Support — Excel + PDF (Feature 3)
+
+**Status:** Research phase COMPLETE. Ready for `/sdd:planning-start`.
+
+### Documents
+
+- Research: `SDD/research/RESEARCH-003-document-support.md`
+
+### Key Technical Decisions
+
+1. **Cannot use `presidio-structured`** — It's a Python library (imports `AnalyzerEngine` directly), not a REST API. Redakt must use its own cell-by-cell extraction + existing REST-based anonymization pipeline.
+2. **All output as JSON/text for v1** — No same-format file downloads. Avoids complexity of multipart responses and file reconstruction. Same-format download deferred to v2.
+3. **PDF: pdfminer.six** — Pure Python, MIT license, used by Presidio's own examples. No OCR for v1 (text-based PDFs only).
+4. **Excel: openpyxl** — Cell-by-cell processing, skip formulas/numbers, process all sheets.
+5. **DOCX/RTF: extracted text only** — No formatting preservation for v1.
+6. **Analyze-first strategy** — Collect all text chunks from document, analyze each via Presidio REST, generate unified mapping across all chunks, then apply replacement. Ensures consistent placeholder numbering.
+7. **File size limit: 10MB** — Configurable via `REDAKT_MAX_FILE_SIZE`. In-memory processing.
+8. **Security: defusedxml** — Required for XML/HTML/DOCX/XLSX to prevent XXE and billion laughs attacks.
+9. **Audit logging** — Log file type, size, entity counts. NEVER log filenames or content.
+10. **6 new dependencies** — pdfminer.six, openpyxl, python-docx, striprtf, beautifulsoup4, defusedxml (all MIT/BSD/PSF).
+
+### File Impact
+
+- **New files:** 6 source files, 4 test files, 1 template, 1 partial, ~6 test fixtures
+- **Modified files:** main.py (router), config.py (settings), audit.py (new log function), pyproject.toml (deps), possibly anonymizer.py (shared mapping support)
+
+### Phase Transition
+
+Research phase complete 2026-03-29. Ready for `/sdd:planning-start`.
+
+---
+
+Research phase complete. RESEARCH-003-document-support.md finalized. Ready for /planning-start.
+
+---
+
+## RESEARCH-003 Critical Review Resolution — 2026-03-29
+
+**Status:** All findings resolved. Research document updated and ready for `/sdd:planning-start`.
+
+### Review Document
+- `SDD/reviews/CRITICAL-RESEARCH-document-support-20260329.md` — 7 critical gaps + 5 questionable assumptions + 4 missing perspectives, ALL resolved
+
+### Key Changes to Research Document
+1. **Multi-chunk pipeline fully designed** — New `build_unified_placeholder_map()` function with signature and implementation. Three-phase pipeline (analyze-all → unified map → per-chunk replace). Existing `anonymizer.py` functions require NO modifications.
+2. **`run_anonymization()` reuse clarified** — NOT called per-chunk. Document processor calls `presidio.analyze()` directly. Integration Points and data flow diagram corrected.
+3. **Presidio throughput analyzed** — Bounded async concurrency (`Semaphore(10)` + `asyncio.gather`) recommended. 2000 cells in ~4-8s.
+4. **Encoding detection strategy added** — `charset-normalizer` library with UTF-8-first fallback chain.
+5. **Memory amplification analyzed** — Peak 100-150MB per request for large XLSX. Container sizing guidance added.
+6. **ZIP bomb protection specified** — Pre-check ZIP manifest total uncompressed size before parsing.
+7. **defusedxml coverage verified** — `defuse_stdlib()` at startup, lxml caveat noted, verification test recommended.
+8. **JSON-only output revised** — CSV returns native CSV text, XLSX JSON limitation acknowledged with UX tradeoff.
+9. **Language detection strategy** — Once per document, not per chunk.
+10. **Missing perspectives added** — InfoSec, Enterprise IT, Accessibility/UX, Data Engineering subsections.
