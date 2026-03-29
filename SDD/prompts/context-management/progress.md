@@ -384,6 +384,7 @@ E2E tests to be created separately per CLAUDE.md guidelines.
 ### Documents
 
 - Research: `SDD/research/RESEARCH-004-language-detection.md`
+- Research critical review: `SDD/reviews/CRITICAL-RESEARCH-language-detection-20260329.md` (all findings resolved)
 
 ### Key Finding
 
@@ -415,6 +416,20 @@ SPEC-004 should be a verification/gap-fill exercise. Minimal implementation need
 ### Phase Transition
 
 Research phase complete. RESEARCH-004-language-detection.md finalized. Ready for /planning-start.
+
+---
+
+## SPEC-004: Planning/Specification Phase
+
+**Status:** APPROVED. Planning phase COMPLETE.
+
+### Documents
+- Specification: `SDD/requirements/SPEC-004-language-detection.md`
+- Based on: `SDD/research/RESEARCH-004-language-detection.md`
+- Spec critical review: `SDD/reviews/CRITICAL-SPEC-language-detection-20260329.md` (all findings resolved)
+
+### Ready For
+- `/sdd:implement` to begin coding
 
 ---
 
