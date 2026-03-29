@@ -650,3 +650,78 @@ Planning phase validation complete. SPEC-005-allow-lists.md finalized.
 - Helper text placement: input first, instance terms below
 - Regex mode post-v1 note with `re.search()` partial-match warning
 - Secrets management gap noted in RISK-003
+
+---
+
+## Implementation Phase -- COMPLETE
+
+### Feature: Allow Lists (SPEC-005)
+- **Specification:** `SDD/requirements/SPEC-005-allow-lists.md`
+- **Implementation Tracking:** `SDD/prompts/PROMPT-005-allow-lists-2026-03-29.md`
+- **Completion:** 2026-03-29
+
+### Final Status
+- All 12 functional requirements (REQ-001 through REQ-012): Implemented
+- All security requirements (SEC-001 through SEC-003): Validated
+- Performance requirements (PERF-001, PERF-002): Met
+- UX requirements (UX-001, UX-002): Implemented
+- All 12 edge cases: Handled
+- All 4 failure scenarios: Implemented
+- All tests: 276 passing (63 new + 213 pre-existing)
+
+### Implementation Summary
+1. **Shared utility module** (`src/redakt/utils.py`) -- `parse_comma_separated()`, `parse_allow_list()`, `validate_allow_list()`, `merge_allow_lists()`, `validate_instance_allow_list()`
+2. **Replaced duplicated merge logic** -- 3 routers/processors now use `merge_allow_lists()` with order-preserving dedup via `dict.fromkeys()`
+3. **Input validation** -- Fail-closed validation (100 terms max, 200 chars max) inside `run_detection()`, `run_anonymization()`, `process_document()` before merge -- covers both API and web UI paths
+4. **Web UI allow_list input** -- Shared partial `allow_list_input.html` included in all 3 templates (detect, anonymize, documents)
+5. **Instance-wide terms display** -- Read-only tags via `allow_list_instance_terms.html` partial, Jinja2 auto-escaped
+6. **Pages.py handlers updated** -- All 3 GET handlers pass `instance_allow_list`, all 3 POST handlers accept `allow_list: str = Form("")` and parse/validate
+7. **Audit logging** -- `allow_list_count` (total merged count) added to all 3 audit functions; never logs term values
+8. **Startup validation** -- `validate_instance_allow_list()` called from FastAPI lifespan handler
+
+### Files Created: 6 source + test files
+### Files Modified: 11
+
+### Critical Review Findings Addressed (2026-03-29)
+
+Resolved all HIGH/MEDIUM findings and most LOW findings from `SDD/reviews/CRITICAL-IMPL-allow-lists-20260329.md`:
+
+1. **[HIGH] FIXED:** `validate_instance_allow_list()` now returns a cleaned list with empty strings stripped (FAIL-002 compliance). Lifespan handler stores cleaned list.
+2. **[HIGH] FIXED:** `_build_empty_response` early-return path now includes `allow_list_count` in result for accurate audit logging.
+3. **[MEDIUM] FIXED:** Added documents web submit integration test with allow list pass-through.
+4. **[MEDIUM] FIXED:** Added tests for empty document + allow list early-return path (per-request only and instance + per-request).
+5. **[LOW] FIXED:** Strengthened E2E anonymize assertion.
+6. **[LOW] FIXED:** Added `maxlength="21100"` to HTML input.
+7. **[LOW] DEFERRED:** `_parse_comma_separated` duplication -- spec explicitly allows keeping both (Note #6).
+8. **[LOW] FIXED:** Added EDGE-002 (partial match) and EDGE-010 (cross-language) integration tests.
+
+All tests passing: 281 passed, 0 failed.
+
+### Phase Transition
+Implementation phase COMPLETE for Allow Lists (Feature 5).
+
+To start next feature:
+- Research new feature: `/sdd:research-start`
+- Plan another feature: `/sdd:planning-start` (if research exists)
+- Implement another feature: `/sdd:implementation-start` (if spec exists)
+
+---
+
+## Implementation Phase — COMPLETE
+
+### Feature: Allow Lists (SPEC-005)
+- Specification: SDD/requirements/SPEC-005-allow-lists.md
+- Implementation: SDD/prompts/PROMPT-005-allow-lists-2026-03-29.md
+- Summary: SDD/prompts/implementation-complete/IMPLEMENTATION-SUMMARY-005-2026-03-29_20-00-00.md
+- Code Review: SDD/reviews/REVIEW-005-allow-lists-20260329.md — APPROVED
+- Critical Review: SDD/reviews/CRITICAL-IMPL-allow-lists-20260329.md — All findings resolved
+- Completion: 2026-03-29
+
+### Final Status
+- All 12 functional requirements: Implemented
+- All security requirements: Validated
+- All performance requirements: Met
+- All UX requirements: Implemented
+- All edge cases: Handled
+- All failure scenarios: Implemented
+- All tests: 281 passing (68 new + 213 pre-existing)
