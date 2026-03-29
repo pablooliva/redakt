@@ -19,6 +19,7 @@ from redakt.services.extractors import (
 )
 from redakt.services.language import detect_language
 from redakt.services.presidio import PresidioClient
+from redakt.utils import merge_allow_lists, validate_allow_list
 
 logger = logging.getLogger("redakt")
 
@@ -215,7 +216,13 @@ async def process_document(
     non_empty_chunks = [c for c in extraction.chunks if c.text.strip()]
 
     if not non_empty_chunks:
-        return _build_empty_response(extension, file_size, extraction, warnings)
+        # Validate and merge allow lists even for empty documents (for audit accuracy)
+        if allow_list:
+            validate_allow_list(allow_list)
+        merged_allow_list = merge_allow_lists(settings.allow_list, allow_list)
+        result = _build_empty_response(extension, file_size, extraction, warnings)
+        result["allow_list_count"] = len(merged_allow_list) if merged_allow_list else None
+        return result
 
     # Step 3b: Handle oversized chunks (EDGE-013)
     valid_chunks: list[TextChunk] = []
@@ -235,10 +242,10 @@ async def process_document(
     # Step 4: Detect language
     resolved_language, language_confidence = await detect_document_language(valid_chunks, language)
 
-    # Step 5: Merge allow lists
-    merged_allow_list = list(settings.allow_list)
+    # Step 5: Validate and merge allow lists
     if allow_list:
-        merged_allow_list.extend(allow_list)
+        validate_allow_list(allow_list)
+    merged_allow_list = merge_allow_lists(settings.allow_list, allow_list)
 
     # Step 6: Analyze all chunks concurrently via Presidio
     semaphore = asyncio.Semaphore(10)
@@ -250,7 +257,7 @@ async def process_document(
                 language=resolved_language,
                 score_threshold=threshold,
                 entities=entities,
-                allow_list=merged_allow_list or None,
+                allow_list=merged_allow_list,
             )
             resolved = resolve_overlaps(results)
             # Enrich with original_text
@@ -298,6 +305,9 @@ async def process_document(
         warnings=warnings,
         entity_types=entity_types,
     )
+
+    # Include allow_list_count for audit logging
+    result["allow_list_count"] = len(merged_allow_list) if merged_allow_list else None
 
     return result
 

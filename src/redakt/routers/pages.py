@@ -17,6 +17,7 @@ from redakt.routers.documents import _get_upload_semaphore
 from redakt.services.document_processor import DocumentProcessingError, process_document
 from redakt.services.extractors import ExtractionError
 from redakt.services.presidio import PresidioClient, get_presidio_client
+from redakt.utils import parse_allow_list
 
 logger = logging.getLogger("redakt")
 router = APIRouter(tags=["pages"])
@@ -25,7 +26,9 @@ templates = Jinja2Templates(directory=str(Path(settings.base_dir) / "templates")
 
 @router.get("/detect", response_class=HTMLResponse)
 async def detect_page(request: Request) -> HTMLResponse:
-    return templates.TemplateResponse(request, "detect.html")
+    return templates.TemplateResponse(
+        request, "detect.html", {"instance_allow_list": settings.allow_list}
+    )
 
 
 @router.post("/detect/submit", response_class=HTMLResponse)
@@ -33,6 +36,7 @@ async def detect_submit(
     request: Request,
     text: str = Form(""),
     language: str = Form("auto"),
+    allow_list: str = Form(""),
     presidio: PresidioClient = Depends(get_presidio_client),
 ) -> HTMLResponse:
     # Enforce text size limit (API route uses Pydantic; form route needs manual check)
@@ -43,12 +47,21 @@ async def detect_submit(
             {"error": f"Text exceeds maximum length of {settings.max_text_length} characters."},
         )
 
+    parsed_allow_list = parse_allow_list(allow_list)
+
     try:
         result = await run_detection(
             text=text,
             language=language,
             score_threshold=settings.default_score_threshold,
             presidio=presidio,
+            allow_list=parsed_allow_list or None,
+        )
+    except ValueError as exc:
+        return templates.TemplateResponse(
+            request,
+            "partials/detect_results.html",
+            {"error": str(exc)},
         )
     except DetectionError as exc:
         error_messages = {
@@ -66,6 +79,7 @@ async def detect_submit(
         entity_types=result.entity_types,
         language=result.language,
         source="web_ui",
+        allow_list_count=result.allow_list_count,
     )
 
     return templates.TemplateResponse(
@@ -83,7 +97,9 @@ async def detect_submit(
 
 @router.get("/anonymize", response_class=HTMLResponse)
 async def anonymize_page(request: Request) -> HTMLResponse:
-    return templates.TemplateResponse(request, "anonymize.html")
+    return templates.TemplateResponse(
+        request, "anonymize.html", {"instance_allow_list": settings.allow_list}
+    )
 
 
 @router.post("/anonymize/submit", response_class=HTMLResponse)
@@ -91,6 +107,7 @@ async def anonymize_submit(
     request: Request,
     text: str = Form(""),
     language: str = Form("auto"),
+    allow_list: str = Form(""),
     presidio: PresidioClient = Depends(get_presidio_client),
 ) -> HTMLResponse:
     if len(text) > settings.max_text_length:
@@ -100,12 +117,21 @@ async def anonymize_submit(
             {"error": f"Text exceeds maximum length of {settings.max_text_length} characters."},
         )
 
+    parsed_allow_list = parse_allow_list(allow_list)
+
     try:
         result = await run_anonymization(
             text=text,
             language=language,
             score_threshold=settings.default_score_threshold,
             presidio=presidio,
+            allow_list=parsed_allow_list or None,
+        )
+    except ValueError as exc:
+        return templates.TemplateResponse(
+            request,
+            "partials/anonymize_results.html",
+            {"error": str(exc)},
         )
     except AnonymizationError as exc:
         error_messages = {
@@ -123,6 +149,7 @@ async def anonymize_submit(
         entity_types=result.entity_types,
         language=result.language,
         source="web_ui",
+        allow_list_count=result.allow_list_count,
     )
 
     return templates.TemplateResponse(
@@ -142,7 +169,10 @@ async def anonymize_submit(
 @router.get("/documents", response_class=HTMLResponse)
 async def documents_page(request: Request) -> HTMLResponse:
     return templates.TemplateResponse(
-        request, "documents.html", {"max_file_size": settings.max_file_size}
+        request, "documents.html", {
+            "max_file_size": settings.max_file_size,
+            "instance_allow_list": settings.allow_list,
+        }
     )
 
 
@@ -151,6 +181,7 @@ async def documents_submit(
     request: Request,
     file: UploadFile,
     language: str = Form("auto"),
+    allow_list: str = Form(""),
     presidio: PresidioClient = Depends(get_presidio_client),
 ) -> HTMLResponse:
     raw = await file.read()
@@ -160,6 +191,8 @@ async def documents_submit(
     extension = ""
     if file.filename:
         extension = Path(file.filename).suffix.lower()
+
+    parsed_allow_list = parse_allow_list(allow_list)
 
     # Acquire upload semaphore (non-blocking, shared with API route)
     sem = _get_upload_semaphore()
@@ -179,6 +212,7 @@ async def documents_submit(
                     file_size=file_size,
                     presidio=presidio,
                     language=language,
+                    allow_list=parsed_allow_list or None,
                 ),
                 timeout=settings.document_processing_timeout,
             )
@@ -187,6 +221,12 @@ async def documents_submit(
             request,
             "partials/document_results.html",
             {"error": "Document processing timed out. Please try a smaller file."},
+        )
+    except ValueError as exc:
+        return templates.TemplateResponse(
+            request,
+            "partials/document_results.html",
+            {"error": str(exc)},
         )
     except (ExtractionError, DocumentProcessingError) as exc:
         return templates.TemplateResponse(
@@ -214,6 +254,7 @@ async def documents_submit(
         )
 
     entity_types = result.pop("entity_types", [])
+    allow_list_count = result.pop("allow_list_count", None)
     log_document_upload(
         file_type=extension.lstrip("."),
         file_size_bytes=file_size,
@@ -221,6 +262,7 @@ async def documents_submit(
         entity_types=entity_types,
         language=result["language_detected"],
         source="web_ui",
+        allow_list_count=allow_list_count,
     )
 
     metadata = result["metadata"]

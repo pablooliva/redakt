@@ -1,0 +1,9 @@
+<div class="form-group">
+    <label for="allow_list">Allow list</label>
+    <input type="text" id="allow_list" name="allow_list"
+           placeholder="e.g. Acme Corp, ProductX, Berlin HQ"
+           aria-describedby="allow_list_help"
+           maxlength="21100">
+    <small id="allow_list_help" class="form-help">Comma-separated terms. Must match exactly as they appear in the text (case-sensitive). Terms containing commas cannot be added via this field.</small>
+    {% include "partials/allow_list_instance_terms.html" %}
+</div>

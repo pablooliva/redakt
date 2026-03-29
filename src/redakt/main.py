@@ -14,6 +14,7 @@ from redakt.config import settings
 from redakt.routers import anonymize, detect, documents, health, pages
 from redakt.services.audit import setup_logging
 from redakt.services.language import validate_language_config
+from redakt.utils import validate_instance_allow_list
 
 
 BASE_DIR = Path(settings.base_dir)
@@ -37,6 +38,7 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
 async def lifespan(app: FastAPI):
     setup_logging(settings.log_level)
     validate_language_config()
+    settings.allow_list = validate_instance_allow_list(settings.allow_list)
     app.state.http_client = httpx.AsyncClient(timeout=settings.presidio_timeout)
     yield
     await app.state.http_client.aclose()

@@ -32,7 +32,15 @@ def setup_logging(log_level: str = "WARNING") -> None:
     app_logger.setLevel(getattr(logging, log_level.upper(), logging.WARNING))
 
 
-def _emit_audit(action: str, entity_count: int, entity_types: list[str], language: str, source: str) -> None:
+def _emit_audit(
+    action: str,
+    entity_count: int,
+    entity_types: list[str],
+    language: str,
+    source: str,
+    allow_list_count: int | None = None,
+    **extra: object,
+) -> None:
     audit_logger = logging.getLogger("redakt.audit")
     record = audit_logger.makeRecord(
         name="redakt.audit",
@@ -50,6 +58,9 @@ def _emit_audit(action: str, entity_count: int, entity_types: list[str], languag
         "language": language,
         "source": source,
     }
+    if allow_list_count is not None and allow_list_count > 0:
+        record.audit_data["allow_list_count"] = allow_list_count
+    record.audit_data.update(extra)
     audit_logger.handle(record)
 
 
@@ -58,8 +69,9 @@ def log_detection(
     entity_types: list[str],
     language: str,
     source: str,
+    allow_list_count: int | None = None,
 ) -> None:
-    _emit_audit("detect", entity_count, entity_types, language, source)
+    _emit_audit("detect", entity_count, entity_types, language, source, allow_list_count=allow_list_count)
 
 
 def log_anonymization(
@@ -67,8 +79,9 @@ def log_anonymization(
     entity_types: list[str],
     language: str,
     source: str,
+    allow_list_count: int | None = None,
 ) -> None:
-    _emit_audit("anonymize", entity_count, entity_types, language, source)
+    _emit_audit("anonymize", entity_count, entity_types, language, source, allow_list_count=allow_list_count)
 
 
 def log_document_upload(
@@ -78,24 +91,15 @@ def log_document_upload(
     entity_types: list[str],
     language: str,
     source: str,
+    allow_list_count: int | None = None,
 ) -> None:
-    audit_logger = logging.getLogger("redakt.audit")
-    record = audit_logger.makeRecord(
-        name="redakt.audit",
-        level=logging.INFO,
-        fn="",
-        lno=0,
-        msg="",
-        args=(),
-        exc_info=None,
+    _emit_audit(
+        "document_upload",
+        entity_count,
+        entity_types,
+        language,
+        source,
+        allow_list_count=allow_list_count,
+        file_type=file_type,
+        file_size_bytes=file_size_bytes,
     )
-    record.audit_data = {
-        "action": "document_upload",
-        "file_type": file_type,
-        "file_size_bytes": file_size_bytes,
-        "entity_count": entity_count,
-        "entity_types": entity_types,
-        "language": language,
-        "source": source,
-    }
-    audit_logger.handle(record)

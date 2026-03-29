@@ -14,6 +14,7 @@ from redakt.models.detect import (
 from redakt.services.audit import log_detection
 from redakt.services.language import detect_language
 from redakt.services.presidio import PresidioClient, get_presidio_client
+from redakt.utils import merge_allow_lists, validate_allow_list
 
 logger = logging.getLogger("redakt")
 router = APIRouter(prefix="/api", tags=["detection"])
@@ -34,6 +35,7 @@ class DetectionResult:
         language: str,
         raw_results: list[dict] | None = None,
         language_confidence: float | None = None,
+        allow_list_count: int | None = None,
     ):
         self.has_pii = has_pii
         self.entity_count = entity_count
@@ -41,6 +43,7 @@ class DetectionResult:
         self.language = language
         self.raw_results = raw_results or []
         self.language_confidence = language_confidence
+        self.allow_list_count = allow_list_count
 
 
 async def run_detection(
@@ -77,10 +80,12 @@ async def run_detection(
             detail=f"Language '{resolved_language}' is not supported. Supported languages: {', '.join(settings.supported_languages)}",
         )
 
-    # Merge allow lists
-    merged_allow_list = list(settings.allow_list)
+    # Validate per-request allow list (fail-closed)
     if allow_list:
-        merged_allow_list.extend(allow_list)
+        validate_allow_list(allow_list)
+
+    # Merge allow lists
+    merged_allow_list = merge_allow_lists(settings.allow_list, allow_list)
 
     # Call Presidio
     try:
@@ -89,7 +94,7 @@ async def run_detection(
             language=resolved_language,
             score_threshold=score_threshold,
             entities=entities,
-            allow_list=merged_allow_list or None,
+            allow_list=merged_allow_list,
         )
     except httpx.ConnectError:
         raise DetectionError(status_code=503, detail="Presidio Analyzer service is unavailable")
@@ -111,6 +116,7 @@ async def run_detection(
         language=resolved_language,
         raw_results=results,
         language_confidence=language_confidence,
+        allow_list_count=len(merged_allow_list) if merged_allow_list else None,
     )
 
 
@@ -130,6 +136,8 @@ async def detect_pii(
             entities=body.entities,
             allow_list=body.allow_list,
         )
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc))
     except DetectionError as exc:
         raise HTTPException(status_code=exc.status_code, detail=exc.detail)
 
@@ -139,6 +147,7 @@ async def detect_pii(
         entity_types=result.entity_types,
         language=result.language,
         source=source,
+        allow_list_count=result.allow_list_count,
     )
 
     if verbose:

@@ -1,0 +1,8 @@
+{% if instance_allow_list %}
+<div class="instance-terms" role="group" aria-label="Instance-wide allow list terms">
+    <small>Instance-wide terms (always applied):</small>
+    {% for term in instance_allow_list %}
+    <span class="term-tag readonly" aria-label="Instance term: {{ term }}">{{ term }}</span>
+    {% endfor %}
+</div>
+{% endif %}

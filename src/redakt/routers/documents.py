@@ -110,6 +110,8 @@ async def upload_document(
             detail="Document processing timed out. The file may contain too many text cells "
             "to process within the time limit.",
         )
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc))
     except ExtractionError as exc:
         raise HTTPException(status_code=exc.status_code, detail=exc.message)
     except DocumentProcessingError as exc:
@@ -136,6 +138,7 @@ async def upload_document(
     # Audit log (no PII: no filename, no content)
     source = "web_ui" if request.headers.get("HX-Request") else "api"
     entity_types = result.pop("entity_types", [])
+    allow_list_count = result.pop("allow_list_count", None)
     log_document_upload(
         file_type=extension.lstrip("."),
         file_size_bytes=file_size,
@@ -143,6 +146,7 @@ async def upload_document(
         entity_types=entity_types,
         language=result["language_detected"],
         source=source,
+        allow_list_count=allow_list_count,
     )
 
     return DocumentUploadResponse(

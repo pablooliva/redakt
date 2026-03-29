@@ -10,6 +10,7 @@ from redakt.services.anonymizer import anonymize_entities
 from redakt.services.audit import log_anonymization
 from redakt.services.language import detect_language
 from redakt.services.presidio import PresidioClient, get_presidio_client
+from redakt.utils import merge_allow_lists, validate_allow_list
 
 logger = logging.getLogger("redakt")
 router = APIRouter(prefix="/api", tags=["anonymization"])
@@ -29,12 +30,14 @@ class AnonymizationResult:
         entity_types: list[str],
         language: str,
         language_confidence: float | None = None,
+        allow_list_count: int | None = None,
     ):
         self.anonymized_text = anonymized_text
         self.mappings = mappings
         self.entity_types = entity_types
         self.language = language
         self.language_confidence = language_confidence
+        self.allow_list_count = allow_list_count
 
 
 async def run_anonymization(
@@ -70,10 +73,12 @@ async def run_anonymization(
             detail=f"Language '{resolved_language}' is not supported. Supported languages: {', '.join(settings.supported_languages)}",
         )
 
-    # Merge allow lists
-    merged_allow_list = list(settings.allow_list)
+    # Validate per-request allow list (fail-closed)
     if allow_list:
-        merged_allow_list.extend(allow_list)
+        validate_allow_list(allow_list)
+
+    # Merge allow lists
+    merged_allow_list = merge_allow_lists(settings.allow_list, allow_list)
 
     # Call Presidio Analyzer
     try:
@@ -82,7 +87,7 @@ async def run_anonymization(
             language=resolved_language,
             score_threshold=score_threshold,
             entities=entities,
-            allow_list=merged_allow_list or None,
+            allow_list=merged_allow_list,
         )
     except httpx.ConnectError:
         raise AnonymizationError(
@@ -102,7 +107,10 @@ async def run_anonymization(
     # Anonymize: resolve overlaps, generate placeholders, replace text
     anonymized_text, mappings, entity_types = anonymize_entities(text, results)
 
-    return AnonymizationResult(anonymized_text, mappings, entity_types, resolved_language, language_confidence)
+    return AnonymizationResult(
+        anonymized_text, mappings, entity_types, resolved_language, language_confidence,
+        allow_list_count=len(merged_allow_list) if merged_allow_list else None,
+    )
 
 
 @router.post("/anonymize")
@@ -122,6 +130,8 @@ async def anonymize(
             entities=body.entities,
             allow_list=body.allow_list,
         )
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc))
     except AnonymizationError as exc:
         raise HTTPException(status_code=exc.status_code, detail=exc.detail)
 
@@ -131,6 +141,7 @@ async def anonymize(
         entity_types=result.entity_types,
         language=result.language,
         source=source,
+        allow_list_count=result.allow_list_count,
     )
 
     return AnonymizeResponse(

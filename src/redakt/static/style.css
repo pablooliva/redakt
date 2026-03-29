@@ -162,3 +162,46 @@ button[type="submit"]:hover {
     font-size: 0.85rem;
     color: #666;
 }
+
+/* Allow list input */
+input[type="text"]#allow_list {
+    width: 100%;
+    padding: 0.5rem 0.75rem;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-family: inherit;
+    font-size: 0.95rem;
+}
+
+.form-help {
+    display: block;
+    margin-top: 0.25rem;
+    color: #666;
+    font-size: 0.8rem;
+}
+
+/* Instance-wide allow list terms */
+.instance-terms {
+    margin-top: 0.5rem;
+}
+
+.instance-terms small {
+    display: block;
+    color: #666;
+    margin-bottom: 0.3rem;
+    font-size: 0.8rem;
+}
+
+.term-tag {
+    display: inline-block;
+    padding: 0.15rem 0.5rem;
+    border-radius: 3px;
+    font-size: 0.8rem;
+    margin: 0.15rem 0.2rem 0.15rem 0;
+}
+
+.term-tag.readonly {
+    background: #e9ecef;
+    color: #6c757d;
+    border: 1px solid #dee2e6;
+}
