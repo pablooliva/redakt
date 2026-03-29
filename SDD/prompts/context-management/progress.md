@@ -365,3 +365,12 @@ E2E tests to be created separately per CLAUDE.md guidelines.
 2. Test fixtures created inline instead of `tests/fixtures/` files -- self-contained tests
 3. E2E tests deferred to separate task per CLAUDE.md guidelines
 4. Test count exceeded estimates: 84 new tests vs ~57 estimated (additional edge case coverage)
+
+---
+
+## Current State
+
+- Last compaction: `compact-2026-03-29_13-57-15.md`
+- Working on: Feature 3 E2E tests — written but not yet run or committed
+- E2E test file: `tests/e2e/test_documents_e2e.py` (20 Playwright tests)
+- Next step: Run E2E tests against Docker Compose stack, fix failures, commit
