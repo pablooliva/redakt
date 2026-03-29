@@ -329,3 +329,19 @@ The language detection infrastructure works for the happy path but has five prod
 4. **Backward compatibility.** The `language_confidence` field defaults to `None` in response models, so existing API consumers that don't use this field are unaffected. No breaking API changes for consumers.
 
 5. **Web UI radio buttons remain hardcoded to auto/en/de for v1.** Dynamic generation from `settings.supported_languages` is a post-v1 enhancement. This is acceptable because the v1 target is EN/DE only.
+
+## Implementation Summary
+
+- **Status:** Complete
+- **Completion Date:** 2026-03-29
+- **Implementation Tracking:** `SDD/prompts/PROMPT-004-language-detection-2026-03-29.md`
+- **Implementation Summary:** `SDD/prompts/implementation-complete/IMPLEMENTATION-SUMMARY-004-2026-03-29_18-00-00.md`
+
+### Outcome
+All 17 functional requirements, 3 non-functional requirements, 2 security requirements, and 3 UX requirements implemented and validated. This was a hardening exercise on existing language detection infrastructure -- no new dependencies were required (Lingua was already installed). 213 tests passing (24 new tests added, up from 189). Code review APPROVED at 95.5%. Critical review completed with all 12 findings resolved (3 HIGH, 5 MEDIUM, 4 LOW).
+
+### Key Implementation Decisions
+1. `LanguageDetection(NamedTuple)` chosen for clean return type supporting both named access and tuple unpacking
+2. `validate_language_config()` runs from FastAPI lifespan handler (not module-level) to avoid interfering with test imports
+3. Confidence displayed as qualitative labels (High/Medium/Low/None) rather than percentages, since Lingua scores are not calibrated probabilities
+4. Empty text returns `language_detection_fallback` instead of `"unknown"` to stay within `supported_languages` validation

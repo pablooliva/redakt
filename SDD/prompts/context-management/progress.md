@@ -452,3 +452,54 @@ Research phase complete. RESEARCH-004-language-detection.md finalized. Ready for
 9. **Questionable assumptions qualified** -- "Best-in-class" -> "Strong short-text accuracy" with citation. "Already tuned" -> "reasonable starting point, not empirically validated". "Functionally complete" -> "core infrastructure in place" with gaps.
 10. **Missing perspectives added** -- DPO/Legal, Security/PenTest, Operations/SRE stakeholder sections added.
 11. **Architectural Recommendation reframed** -- From "minimal work" to "more work than initially estimated" with prioritized action items.
+
+---
+
+## Implementation Phase -- COMPLETE
+
+### Feature: Language Auto-Detection with Manual Override (SPEC-004)
+- **Specification:** `SDD/requirements/SPEC-004-language-detection.md`
+- **Implementation Tracking:** `SDD/prompts/PROMPT-004-language-detection-2026-03-29.md`
+- **Completion:** 2026-03-29
+
+### Final Status
+- All 17 functional requirements (REQ-001 through REQ-017): Implemented
+- All 2 security requirements (SEC-001, SEC-002): Validated
+- Performance requirement (PERF-001): Met
+- All 10 edge cases: Handled
+- All 4 failure scenarios: Documented
+- All tests: 210 passing (21 new + 189 pre-existing)
+
+### Implementation Summary
+This was a hardening exercise on existing language detection infrastructure:
+1. **Dynamic detector building** -- `_build_detector()` now reads from `settings.supported_languages` via `ISO_TO_LINGUA` mapping
+2. **Configurable fallback** -- New `language_detection_fallback` setting replaces all hardcoded `"en"` fallbacks
+3. **Startup validation** -- `validate_language_config()` called from FastAPI lifespan handler; rejects unknown codes or fallback not in supported list
+4. **Confidence scores** -- `language_confidence: float | None` added to all API responses; Lingua's `compute_language_confidence_values()` used for auto-detect
+5. **Improved logging** -- Timeout at WARNING, other exceptions at ERROR with `exc_info=True`; structured log fields per SEC-001
+6. **Template confidence labels** -- High/Medium/Low/None labels in all result partials; omitted for manual override
+7. **LanguageDetection NamedTuple** -- Clean return type supporting both named access and tuple unpacking
+8. **Empty text handling** -- Returns `language_detection_fallback` instead of `"unknown"` (EDGE-003)
+
+### Files Modified: 14 source + 7 test files
+### Files Created: 2 (E2E test file, PROMPT tracking)
+### Test Count: 213 (was 189, +24 new)
+
+### Code Review
+- **Decision:** APPROVED (95.5%)
+- All requirements verified across functional, security, performance, and UX categories
+
+### Critical Review
+- 3 HIGH, 5 MEDIUM, 4 LOW findings -- all 12 resolved
+- Key fixes applied during implementation
+
+### Implementation Summary
+- `SDD/prompts/implementation-complete/IMPLEMENTATION-SUMMARY-004-2026-03-29_18-00-00.md`
+
+### Phase Transition
+Implementation phase COMPLETE for Language Auto-Detection with Manual Override (SPEC-004).
+
+To start next feature:
+- Research new feature: `/sdd:research-start`
+- Plan another feature: `/sdd:planning-start` (if research exists)
+- Implement another feature: `/sdd:implementation-start` (if spec exists)
