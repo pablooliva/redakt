@@ -11,7 +11,7 @@ from fastapi.staticfiles import StaticFiles
 from starlette.middleware.base import BaseHTTPMiddleware
 
 from redakt.config import settings
-from redakt.routers import anonymize, detect, documents, health, pages
+from redakt.routers import anonymize, deanonymize, detect, documents, health, pages
 from redakt.services.audit import setup_logging
 from redakt.services.language import validate_language_config
 from redakt.utils import validate_instance_allow_list
@@ -59,6 +59,7 @@ app = FastAPI(
 app.add_middleware(SecurityHeadersMiddleware)
 
 app.include_router(anonymize.router)
+app.include_router(deanonymize.router)
 app.include_router(detect.router)
 app.include_router(documents.router)
 app.include_router(health.router)
