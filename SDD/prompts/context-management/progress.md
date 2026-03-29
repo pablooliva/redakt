@@ -503,3 +503,74 @@ To start next feature:
 - Research new feature: `/sdd:research-start`
 - Plan another feature: `/sdd:planning-start` (if research exists)
 - Implement another feature: `/sdd:implementation-start` (if spec exists)
+
+---
+
+## RESEARCH-005: Allow Lists (Feature 5)
+
+**Status:** Research phase COMPLETE. Ready for `/sdd:planning-start`.
+
+### Documents
+
+- Research: `SDD/research/RESEARCH-005-allow-lists.md`
+
+### Key Finding
+
+Feature 5 is **already substantially implemented** on the backend/API side. The `allow_list` config setting, Pydantic model fields, merge logic, Presidio client passthrough, and tests all exist. The primary gaps are in the **web UI** (no allow_list input in any of the 3 forms or page handlers).
+
+### Existing Implementation
+
+1. **Config**: `src/redakt/config.py:16` -- `allow_list: list[str] = []` with `REDAKT_` env prefix
+2. **Models**: `models/detect.py:9` and `models/anonymize.py:9` -- `allow_list: list[str] | None`
+3. **API routes**: Detect, Anonymize, Documents -- all accept and merge allow_list
+4. **Presidio client**: `services/presidio.py:19-29` -- passes allow_list to Presidio's `/analyze`
+5. **Document processor**: `services/document_processor.py:239-240` -- merge logic for documents
+6. **Tests**: 4 test files cover allow_list merge behavior
+
+### Identified Gaps (6)
+
+1. **Web UI forms** -- None of the 3 templates (detect.html, anonymize.html, documents.html) have allow_list input
+2. **Web UI handlers** -- `pages.py` submit handlers don't accept or pass allow_list
+3. **Instance-wide terms display** -- No UI visibility into pre-configured terms
+4. **Input validation** -- No limits on term count, length, or character filtering
+5. **Shared merge utility** -- Merge logic duplicated in 3 places (detect, anonymize, document_processor)
+6. **Case sensitivity** -- Presidio's exact match is case-sensitive; may surprise users
+
+### Open Questions Resolved
+
+1. **Storage**: Env var (`REDAKT_ALLOW_LIST`) via pydantic-settings -- already implemented, sufficient for v1
+2. **Admin UI**: No dedicated admin UI for v1 -- read-only display of instance-wide terms in web UI
+3. **Regex support**: Exact match only for v1 -- Presidio supports regex via `allow_list_match` but adds complexity
+
+### Scope Assessment
+
+Small-to-medium feature. Backend plumbing is done. Primary work is UI additions, pages.py updates, input validation, shared utility extraction, and tests.
+
+### Phase Transition
+
+Research phase complete 2026-03-29. RESEARCH-005-allow-lists.md finalized. Ready for `/sdd:planning-start`.
+
+---
+
+Research phase complete. RESEARCH-005-allow-lists.md finalized. Ready for /planning-start.
+
+---
+
+## RESEARCH-005 Critical Review Resolution — 2026-03-29
+
+**Status:** All findings resolved. Research document updated and ready for /planning-start.
+
+### Review Document
+- `SDD/reviews/CRITICAL-RESEARCH-allow-lists-20260329.md` — 17 findings (2 HIGH, 3 MEDIUM critical gaps + 5 factual errors + 5 questionable assumptions + 4 missing perspectives), ALL resolved
+
+### Key Changes to Research Document
+1. **Regex matching corrected** (HIGH) — Changed `re.fullmatch()` to `re.search()` throughout; documented partial-match implications
+2. **Port discrepancy documented** (HIGH) — Added explanatory note about docker-compose `PORT=5001` override vs CLAUDE.md's 5002
+3. **Score threshold interaction added** (MEDIUM) — New subsection documenting filtering order and implications
+4. **Language detection interaction added** (MEDIUM) — New subsection on language-dependent NER and allow list effectiveness
+5. **DoS/abuse analysis added** (MEDIUM) — Input validation promoted to hard v1 requirement with specific limits (100 terms, 200 chars)
+6. **Web UI gap clarified** (LOW) — Instance-wide allow list already works for web UI; gap is per-request terms only
+7. **XSS claim qualified** — "No XSS risk" replaced with conditional safety statement (Jinja2 auto-escaping)
+8. **PII assertion softened** — "NOT PII" changed to "typically not PII" with sensitivity guidance
+9. **4 missing perspectives added** — Enterprise IT/Ops, Non-English users, Compliance/Legal, QA/Testing
+10. **Performance analysis added** — O(n) list scan documented for exact mode; O(n*m) DoS risk quantified
