@@ -205,3 +205,76 @@ Research phase complete. RESEARCH-003-document-support.md finalized. Ready for /
 8. **JSON-only output revised** — CSV returns native CSV text, XLSX JSON limitation acknowledged with UX tradeoff.
 9. **Language detection strategy** — Once per document, not per chunk.
 10. **Missing perspectives added** — InfoSec, Enterprise IT, Accessibility/UX, Data Engineering subsections.
+
+---
+
+## SPEC-003: Planning/Specification Phase
+
+**Status:** Draft. Ready for critical review.
+
+### Documents
+
+- Specification: `SDD/requirements/SPEC-003-document-support.md`
+- Based on: `SDD/research/RESEARCH-003-document-support.md`
+- Research critical review: `SDD/reviews/CRITICAL-RESEARCH-document-support-20260329.md` (all findings resolved)
+
+### Specification Summary
+
+- 20 functional requirements (REQ-001 through REQ-020)
+- 8 security requirements (SEC-001 through SEC-008)
+- 3 performance requirements (PERF-001 through PERF-003)
+- 4 UX requirements (UX-001 through UX-004)
+- 14 edge cases documented with test approaches (EDGE-001 through EDGE-014)
+- 8 failure scenarios with recovery strategies (FAIL-001 through FAIL-008)
+- 5 identified risks with mitigations (RISK-001 through RISK-005)
+- Full API contract (REST + Web UI) defined
+- Core algorithm: three-phase document processing pipeline specified
+- Suggested implementation order (8 steps)
+- 16 new files to create, 6 existing files to modify
+- 7 new Python dependencies (all MIT/BSD/PSF, pure Python)
+
+### Key Design Decisions Captured
+
+1. Three-phase pipeline: extract → analyze all chunks concurrently → unified placeholder map → per-chunk replacement
+2. New `build_unified_placeholder_map()` function (NOT reusing `generate_placeholders()`)
+3. JSON response for all formats in v1 (no same-format file output)
+4. Bounded async concurrency: `Semaphore(10)` + `asyncio.gather`
+5. Per-document language detection (not per-chunk)
+6. `anonymizer.py` requires NO modifications
+7. `defusedxml.defuse_stdlib()` at startup for XML attack prevention
+8. Extension whitelist + magic bytes for file validation
+9. 10MB file size limit, 120s processing timeout
+10. CSV returns native CSV text; XLSX returns structured JSON (v1 limitation)
+
+### Ready For
+
+- Critical review of specification
+- Then `/sdd:implement` to begin coding
+
+---
+
+Planning phase validation complete. SPEC-003-document-support.md finalized.
+
+---
+
+## SPEC-003 Critical Review Resolution — 2026-03-29
+
+**Status:** All findings resolved. Spec updated and ready for implementation.
+
+### Review Document
+- `SDD/reviews/CRITICAL-SPEC-document-support-20260329.md` — 3 HIGH, 8 MEDIUM, 6 LOW findings, ALL resolved
+
+### Key Spec Changes
+1. **REQ-013 language detection** -- Resolved ambiguity: concatenate first N chunks up to 5KB, not "longest chunk or first 5KB"
+2. **EDGE-013 oversized chunks** -- Skip with `[CONTENT TOO LARGE - SKIPPED]` placeholder, no PII leakage
+3. **SEC-003/RISK-005 lxml gap** -- Confirmed python-docx requires lxml, defuse_stdlib() doesn't cover it. Added XXE verification test requirement and fallback mitigation
+4. **RISK-003 memory/OOM** -- Added server-side concurrency semaphore (PERF-004, FAIL-009), 429 response
+5. **RISK-002 short cells** -- Upgraded to HIGH, added user-facing warning in UX-004
+6. **CSV output** -- Specified delimiter, quoting, line terminator; added API contract example
+7. **HTMX rendering** -- Specified per-format strategy (table for XLSX, pre/code for JSON, pre for text)
+8. **5 new edge cases** -- EDGE-015 (XLSX row bounds), EDGE-016 (HTML data URIs), EDGE-017 (DOCX tracked changes), EDGE-018 (RTF OLE), EDGE-019 (CSV delimiter override deferred to v2)
+9. **Multipart form serialization** -- Documented comma-separated format, empty-string handling
+10. **New UX-005** -- Client-side file size pre-validation
+
+### Ready For
+- `/sdd:implement` to begin coding
