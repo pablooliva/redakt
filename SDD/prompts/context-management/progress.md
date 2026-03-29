@@ -374,3 +374,66 @@ E2E tests to be created separately per CLAUDE.md guidelines.
 - Working on: Feature 3 E2E tests — written but not yet run or committed
 - E2E test file: `tests/e2e/test_documents_e2e.py` (20 Playwright tests)
 - Next step: Run E2E tests against Docker Compose stack, fix failures, commit
+
+---
+
+## RESEARCH-004: Language Auto-Detection with Manual Override (Feature 4)
+
+**Status:** Research phase COMPLETE. Ready for `/sdd:planning-start`.
+
+### Documents
+
+- Research: `SDD/research/RESEARCH-004-language-detection.md`
+
+### Key Finding
+
+Feature 4 is **already substantially implemented** as part of Features 1-3. The `lingua-language-detector` library is integrated, all endpoints accept `"language": "auto"`, all UI pages have auto/en/de toggles, and all responses include `language_detected`. Remaining work is incremental.
+
+### Existing Implementation
+
+1. **Language service**: `src/redakt/services/language.py` -- Lingua detector (EN+DE), async with 2s timeout, fallback to "en"
+2. **Config**: `supported_languages: ["en", "de"]`, `default_language: "auto"`, `language_detection_timeout: 2.0`
+3. **All routers**: Resolve "auto" -> detect, validate against supported list, pass to Presidio
+4. **All models**: Accept `language` input (default "auto"), return `language_detected`
+5. **All templates**: Radio toggle groups (auto/en/de)
+6. **All result partials**: Display detected language
+7. **Document pipeline**: Per-document detection (5KB sample from first chunks)
+8. **Tests**: 6 unit tests in `test_language.py`, language tested in integration tests
+
+### Identified Gaps (5)
+
+1. **Mixed-language strategy** -- Spec open question. Recommend: document as v1 limitation (dominant language used, regex recognizers are language-agnostic)
+2. **Detection confidence feedback** -- No confidence score returned. Lingua supports it. Low-effort enhancement.
+3. **Full-text vs. sample** -- Already decided: full text for text endpoints, 5KB for documents. No change needed.
+4. **Spanish support** -- Presidio config includes `es_core_news_md` but Redakt restricts to EN+DE. Defer to post-v1.
+5. **Test coverage gaps** -- Need to verify/add: mixed-language tests, unsupported language 400 tests, E2E toggle tests
+
+### Recommendation
+
+SPEC-004 should be a verification/gap-fill exercise. Minimal implementation needed -- primarily test additions and possibly a confidence score enhancement.
+
+### Phase Transition
+
+Research phase complete. RESEARCH-004-language-detection.md finalized. Ready for /planning-start.
+
+---
+
+## RESEARCH-004 Critical Review Resolution -- 2026-03-29
+
+**Status:** All findings resolved. Research document updated and ready for `/sdd:planning-start`.
+
+### Review Document
+- `SDD/reviews/CRITICAL-RESEARCH-language-detection-20260329.md` -- 3 HIGH, 4 MEDIUM, 2 LOW findings + 5 questionable assumptions + 4 missing perspectives, ALL resolved
+
+### Key Changes to Research Document
+1. **Hardcoded language list coupling documented** (HIGH) -- Added as Gap 1. Dynamic detector building recommended. Startup validation alternative specified.
+2. **Port discrepancy corrected** (HIGH) -- External Dependencies table fixed. Analyzer uses internal port 5001 in Redakt docker-compose, not 5002. Explanatory note added.
+3. **GDPR impact analysis added** (HIGH) -- New subsection under "What Happens with Wrong Language" quantifying risk for PERSON/LOCATION/ORGANIZATION NER categories. Empirical accuracy testing required before SPEC-004 finalization.
+4. **English fallback bias addressed** (HIGH) -- Added as Gap 2. `settings.default_language` confirmed NOT wired into `language.py` fallback paths. Configurable fallback recommended.
+5. **Exception handling weakness documented** (MEDIUM) -- New edge case section. Three specific fixes recommended (log details, separate timeout/error handling, observability).
+6. **lru_cache constraint documented** (MEDIUM) -- Added to Lingua library analysis table.
+7. **5KB sampling limitation expanded** (MEDIUM) -- Document Language Detection edge case updated with concrete examples of failure modes.
+8. **Line number errors fixed** -- `audit.py:59,68,79` -> `56,65,74`. `document_processor.py:184` -> `179`. `133-168` -> `133-172`.
+9. **Questionable assumptions qualified** -- "Best-in-class" -> "Strong short-text accuracy" with citation. "Already tuned" -> "reasonable starting point, not empirically validated". "Functionally complete" -> "core infrastructure in place" with gaps.
+10. **Missing perspectives added** -- DPO/Legal, Security/PenTest, Operations/SRE stakeholder sections added.
+11. **Architectural Recommendation reframed** -- From "minimal work" to "more work than initially estimated" with prioritized action items.
