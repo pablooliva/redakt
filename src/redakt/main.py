@@ -36,7 +36,12 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    setup_logging(settings.log_level)
+    setup_logging(
+        log_level=settings.log_level,
+        audit_log_file=settings.audit_log_file,
+        audit_log_max_bytes=settings.audit_log_max_bytes,
+        audit_log_backup_count=settings.audit_log_backup_count,
+    )
     validate_language_config()
     settings.allow_list = validate_instance_allow_list(settings.allow_list)
     app.state.http_client = httpx.AsyncClient(timeout=settings.presidio_timeout)

@@ -76,8 +76,8 @@ async def detect_submit(
 
     log_detection(
         entity_count=result.entity_count,
-        entity_types=result.entity_types,
-        language=result.language,
+        entities_found=result.entity_types,
+        language_detected=result.language,
         source="web_ui",
         allow_list_count=result.allow_list_count,
     )
@@ -146,10 +146,11 @@ async def anonymize_submit(
 
     log_anonymization(
         entity_count=len(result.mappings),
-        entity_types=result.entity_types,
-        language=result.language,
+        entities_found=result.entity_types,
+        language_detected=result.language,
         source="web_ui",
         allow_list_count=result.allow_list_count,
+        operator="replace",
     )
 
     return templates.TemplateResponse(
@@ -259,10 +260,11 @@ async def documents_submit(
         file_type=extension.lstrip("."),
         file_size_bytes=file_size,
         entity_count=len(result["mappings"]),
-        entity_types=entity_types,
-        language=result["language_detected"],
+        entities_found=entity_types,
+        language_detected=result["language_detected"],
         source="web_ui",
         allow_list_count=allow_list_count,
+        operator="replace",
     )
 
     metadata = result["metadata"]

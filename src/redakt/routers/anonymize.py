@@ -138,10 +138,11 @@ async def anonymize(
     source = "web_ui" if request.headers.get("HX-Request") else "api"
     log_anonymization(
         entity_count=len(result.mappings),
-        entity_types=result.entity_types,
-        language=result.language,
+        entities_found=result.entity_types,
+        language_detected=result.language,
         source=source,
         allow_list_count=result.allow_list_count,
+        operator="replace",
     )
 
     return AnonymizeResponse(

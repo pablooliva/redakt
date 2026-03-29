@@ -174,7 +174,7 @@ class TestDetectEndpoint:
             mock_log.assert_called_once()
             call_kwargs = mock_log.call_args.kwargs
             assert call_kwargs["entity_count"] == 2
-            assert "PERSON" in call_kwargs["entity_types"]
+            assert "PERSON" in call_kwargs["entities_found"]
             assert call_kwargs["source"] == "api"
             # Verify no PII in the log call
             assert "John" not in str(call_kwargs)

@@ -142,9 +142,10 @@ class TestAnonymizeEndpoint:
             mock_log.assert_called_once()
             call_kwargs = mock_log.call_args.kwargs
             assert call_kwargs["entity_count"] == 2
-            assert "PERSON" in call_kwargs["entity_types"]
-            assert "EMAIL_ADDRESS" in call_kwargs["entity_types"]
+            assert "PERSON" in call_kwargs["entities_found"]
+            assert "EMAIL_ADDRESS" in call_kwargs["entities_found"]
             assert call_kwargs["source"] == "api"
+            assert call_kwargs["operator"] == "replace"
             # Verify no PII in log call
             assert "John" not in str(call_kwargs)
             assert "example.com" not in str(call_kwargs)

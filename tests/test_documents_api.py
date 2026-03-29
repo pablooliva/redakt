@@ -237,8 +237,9 @@ startxref
             call_kwargs = mock_log.call_args.kwargs
             assert call_kwargs["file_type"] == "txt"
             assert call_kwargs["entity_count"] == 1
-            assert "PERSON" in call_kwargs["entity_types"]
+            assert "PERSON" in call_kwargs["entities_found"]
             assert call_kwargs["source"] == "api"
+            assert call_kwargs["operator"] == "replace"
             # Verify no PII in log
             assert "John" not in str(call_kwargs)
 

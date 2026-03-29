@@ -143,10 +143,11 @@ async def upload_document(
         file_type=extension.lstrip("."),
         file_size_bytes=file_size,
         entity_count=len(result["mappings"]),
-        entity_types=entity_types,
-        language=result["language_detected"],
+        entities_found=entity_types,
+        language_detected=result["language_detected"],
         source=source,
         allow_list_count=allow_list_count,
+        operator="replace",
     )
 
     return DocumentUploadResponse(

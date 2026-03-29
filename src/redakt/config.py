@@ -20,6 +20,11 @@ class Settings(BaseSettings):
     language_detection_fallback: str = "en"
     log_level: str = "WARNING"
 
+    # Audit logging settings
+    audit_log_file: str = ""
+    audit_log_max_bytes: int = 10_485_760  # 10MB
+    audit_log_backup_count: int = 5
+
     # Document upload settings
     max_file_size: int = 10 * 1024 * 1024  # 10MB
     supported_file_types: list[str] = [
