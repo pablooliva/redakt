@@ -16,7 +16,8 @@ dependencies = [
 [project.optional-dependencies]
 dev = [
     "pytest>=8.0",
-    "pytest-asyncio>=0.25",
+    "pytest-asyncio>=0.25,<1.0",
+    "pytest-playwright>=0.7",
     "httpx>=0.28",
     "ruff>=0.9",
 ]
@@ -31,7 +32,17 @@ packages = ["src/redakt"]
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]
+# E2E tests are excluded by default — they need Presidio running.
+# Run them explicitly: uv run pytest tests/e2e/
+# Or with browser visible: uv run pytest tests/e2e/ --headed
+addopts = "--ignore=tests/e2e"
 
 [tool.ruff]
 target-version = "py312"
 line-length = 100
+
+[dependency-groups]
+dev = [
+    "pytest-asyncio>=0.25,<1.0",
+    "pytest-playwright>=0.7.2",
+]

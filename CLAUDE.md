@@ -41,6 +41,25 @@ Analyzer: `http://localhost:5002`, Anonymizer: `http://localhost:5001`
 
 Key Presidio modules: `presidio-analyzer/`, `presidio-anonymizer/`, `presidio-structured/`, `presidio-image-redactor/`, `presidio-cli/`.
 
+## Testing
+
+```bash
+# Unit + integration tests (fast, no Docker needed)
+uv run pytest tests/
+
+# E2E browser tests with Playwright (requires docker compose up)
+uv run pytest tests/e2e/
+
+# E2E with visible browser
+uv run pytest tests/e2e/ --headed
+```
+
+- Unit/integration tests use FastAPI's TestClient with mocked Presidio — no real services needed.
+- E2E tests use Playwright (Chromium) against the real Docker Compose stack on `localhost:8000`.
+- E2E tests are excluded from `uv run pytest tests/` by default (`--ignore=tests/e2e` in pyproject.toml).
+- When implementing features with browser-facing behavior (JS, HTMX, CSP, client-side logic, multi-step UI flows), add E2E tests in `tests/e2e/`.
+- E2E tests use real Presidio NLP — test data must account for real detection (not mocked).
+
 ## Design Decisions
 
 - **Client-side PII mapping**: Anonymize endpoint returns the placeholder-to-original mapping. The browser (or AI agent) holds it in memory. Deanonymization is client-side string replacement. Backend stays stateless with no PII at rest.
