@@ -4,6 +4,8 @@ from unittest.mock import AsyncMock, patch
 
 import httpx
 
+from redakt.services.language import LanguageDetection
+
 
 class TestAnonymizeEndpoint:
     def test_anonymize_basic(self, client, mock_presidio_analyze, mock_anon_detect_language):
@@ -37,20 +39,25 @@ class TestAnonymizeEndpoint:
         data = resp.json()
         assert data["anonymized_text"] == ""
         assert data["mappings"] == {}
-        assert data["language_detected"] == "unknown"
+        assert data["language_detected"] == "en"  # Fallback language
+        assert data["language_confidence"] is None  # No detection attempted
 
     def test_anonymize_language_auto(self, client, mock_presidio_analyze, mock_anon_detect_language):
-        mock_anon_detect_language.return_value = "de"
+        mock_anon_detect_language.return_value = LanguageDetection("de", 0.92)
         mock_presidio_analyze.return_value = []
         resp = client.post("/api/anonymize", json={"text": "Mein Name ist Hans"})
         assert resp.status_code == 200
-        assert resp.json()["language_detected"] == "de"
+        data = resp.json()
+        assert data["language_detected"] == "de"
+        assert data["language_confidence"] == 0.92
         mock_anon_detect_language.assert_called_once()
 
     def test_anonymize_language_explicit(self, client, mock_presidio_analyze, mock_anon_detect_language):
         mock_presidio_analyze.return_value = []
         resp = client.post("/api/anonymize", json={"text": "Hello world", "language": "en"})
         assert resp.status_code == 200
+        data = resp.json()
+        assert data["language_confidence"] is None  # Manual override
         mock_anon_detect_language.assert_not_called()
 
     def test_anonymize_language_unsupported(self, client, mock_anon_detect_language):
@@ -147,7 +154,7 @@ class TestAnonymizeEndpoint:
         mock_presidio_analyze.return_value = []
         resp = client.post("/api/anonymize", json={"text": "Hello world"})
         data = resp.json()
-        assert set(data.keys()) == {"anonymized_text", "mappings", "language_detected"}
+        assert set(data.keys()) == {"anonymized_text", "mappings", "language_detected", "language_confidence"}
         assert isinstance(data["anonymized_text"], str)
         assert isinstance(data["mappings"], dict)
         assert isinstance(data["language_detected"], str)

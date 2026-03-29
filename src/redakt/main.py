@@ -13,6 +13,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from redakt.config import settings
 from redakt.routers import anonymize, detect, documents, health, pages
 from redakt.services.audit import setup_logging
+from redakt.services.language import validate_language_config
 
 
 BASE_DIR = Path(settings.base_dir)
@@ -35,6 +36,7 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     setup_logging(settings.log_level)
+    validate_language_config()
     app.state.http_client = httpx.AsyncClient(timeout=settings.presidio_timeout)
     yield
     await app.state.http_client.aclose()

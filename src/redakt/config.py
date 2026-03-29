@@ -17,6 +17,7 @@ class Settings(BaseSettings):
     max_text_length: int = 512_000  # ~500KB
     presidio_timeout: float = 30.0
     language_detection_timeout: float = 2.0
+    language_detection_fallback: str = "en"
     log_level: str = "WARNING"
 
     # Document upload settings

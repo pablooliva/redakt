@@ -164,7 +164,7 @@ startxref
         assert resp2.status_code == 413
 
     def test_empty_file(self, client, mock_doc_detect_language):
-        """Empty file returns empty content gracefully."""
+        """Empty file returns empty content with fallback language (EDGE-003, FINDING-09)."""
         resp = client.post(
             "/api/documents/upload",
             files={"file": ("empty.txt", io.BytesIO(b""), "text/plain")},
@@ -173,6 +173,8 @@ startxref
         data = resp.json()
         assert data["anonymized_content"] == ""
         assert data["mappings"] == {}
+        assert data["language_detected"] == "en"  # Fallback language
+        assert data["language_confidence"] is None
 
     def test_corrupted_file(self, client):
         """Corrupted file returns 422."""
@@ -252,11 +254,36 @@ startxref
         assert "anonymized_structured" in data
         assert "mappings" in data
         assert "language_detected" in data
+        assert "language_confidence" in data
         assert "source_format" in data
         assert "metadata" in data
         # For txt: content populated, structured null
         assert data["anonymized_content"] is not None
         assert data["anonymized_structured"] is None
+
+    def test_language_auto_returns_confidence(self, client, mock_presidio_analyze, mock_doc_detect_language):
+        """Auto-detect returns non-null confidence."""
+        mock_presidio_analyze.return_value = []
+        resp = client.post(
+            "/api/documents/upload",
+            files={"file": ("test.txt", io.BytesIO(b"Hello world"), "text/plain")},
+            data={"language": "auto"},
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["language_confidence"] is not None  # Mock returns 0.95
+
+    def test_language_explicit_returns_null_confidence(self, client, mock_presidio_analyze, mock_doc_detect_language):
+        """Manual override returns null confidence."""
+        mock_presidio_analyze.return_value = []
+        resp = client.post(
+            "/api/documents/upload",
+            files={"file": ("test.txt", io.BytesIO(b"Hello world"), "text/plain")},
+            data={"language": "en"},
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["language_confidence"] is None
 
     def test_entities_filter(self, client, mock_presidio_analyze, mock_doc_detect_language):
         """Entities filter is parsed from comma-separated string."""

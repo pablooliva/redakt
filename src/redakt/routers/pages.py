@@ -76,6 +76,7 @@ async def detect_submit(
             "entity_count": result.entity_count,
             "entities_found": result.entity_types,
             "language_detected": result.language,
+            "language_confidence": result.language_confidence,
         },
     )
 
@@ -133,6 +134,7 @@ async def anonymize_submit(
             "mappings_json": json.dumps(result.mappings),
             "mapping_count": len(result.mappings),
             "language_detected": result.language,
+            "language_confidence": result.language_confidence,
         },
     )
 
@@ -230,6 +232,7 @@ async def documents_submit(
         "mappings_json": json.dumps(result["mappings"]),
         "mapping_count": len(result["mappings"]),
         "language_detected": result["language_detected"],
+        "language_confidence": result.get("language_confidence"),
         "source_format": source_format,
         "chunks_analyzed": metadata["chunks_analyzed"],
         "warnings": metadata.get("warnings", []),

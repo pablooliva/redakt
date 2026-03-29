@@ -124,7 +124,8 @@ class TestProcessDocument:
             "redakt.services.document_processor.detect_language",
             new_callable=AsyncMock,
         ) as mock:
-            mock.return_value = "en"
+            from redakt.services.language import LanguageDetection
+            mock.return_value = LanguageDetection("en", 0.95)
             yield mock
 
     @pytest.mark.asyncio
@@ -259,7 +260,8 @@ class TestMultiSheetPiiConsistency:
             "redakt.services.document_processor.detect_language",
             new_callable=AsyncMock,
         ) as mock:
-            mock.return_value = "en"
+            from redakt.services.language import LanguageDetection
+            mock.return_value = LanguageDetection("en", 0.95)
             yield mock
 
     @pytest.mark.asyncio

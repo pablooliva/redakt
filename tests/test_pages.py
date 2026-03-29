@@ -3,6 +3,7 @@ from unittest.mock import AsyncMock, patch
 
 import httpx
 
+from redakt.services.language import LanguageDetection
 from tests.conftest import SAMPLE_PRESIDIO_RESULTS
 
 
@@ -15,7 +16,7 @@ class TestDetectPage:
 
     def test_detect_submit_with_pii(self, client, mock_presidio_analyze):
         mock_presidio_analyze.return_value = SAMPLE_PRESIDIO_RESULTS
-        with patch("redakt.routers.detect.detect_language", new_callable=AsyncMock, return_value="en"):
+        with patch("redakt.routers.detect.detect_language", new_callable=AsyncMock, return_value=LanguageDetection("en", 0.95)):
             resp = client.post(
                 "/detect/submit",
                 data={"text": "My name is John Smith", "language": "auto"},
@@ -26,7 +27,7 @@ class TestDetectPage:
 
     def test_detect_submit_no_pii(self, client, mock_presidio_analyze):
         mock_presidio_analyze.return_value = []
-        with patch("redakt.routers.detect.detect_language", new_callable=AsyncMock, return_value="en"):
+        with patch("redakt.routers.detect.detect_language", new_callable=AsyncMock, return_value=LanguageDetection("en", 0.95)):
             resp = client.post(
                 "/detect/submit",
                 data={"text": "Weather is nice", "language": "en"},

@@ -5,6 +5,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from redakt.main import app
+from redakt.services.language import LanguageDetection
 
 
 @pytest.fixture
@@ -28,7 +29,7 @@ def mock_presidio_health():
 def mock_detect_language():
     """Mock the language detection service in the detect router."""
     with patch("redakt.routers.detect.detect_language", new_callable=AsyncMock) as mock:
-        mock.return_value = "en"
+        mock.return_value = LanguageDetection("en", 0.95)
         yield mock
 
 
@@ -36,7 +37,7 @@ def mock_detect_language():
 def mock_anon_detect_language():
     """Mock the language detection service in the anonymize router."""
     with patch("redakt.routers.anonymize.detect_language", new_callable=AsyncMock) as mock:
-        mock.return_value = "en"
+        mock.return_value = LanguageDetection("en", 0.95)
         yield mock
 
 
@@ -44,7 +45,7 @@ def mock_anon_detect_language():
 def mock_doc_detect_language():
     """Mock the language detection service in the document processor."""
     with patch("redakt.services.document_processor.detect_language", new_callable=AsyncMock) as mock:
-        mock.return_value = "en"
+        mock.return_value = LanguageDetection("en", 0.95)
         yield mock
 
 

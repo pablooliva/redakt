@@ -33,12 +33,14 @@ class DetectionResult:
         entity_types: list[str],
         language: str,
         raw_results: list[dict] | None = None,
+        language_confidence: float | None = None,
     ):
         self.has_pii = has_pii
         self.entity_count = entity_count
         self.entity_types = entity_types
         self.language = language
         self.raw_results = raw_results or []
+        self.language_confidence = language_confidence
 
 
 async def run_detection(
@@ -53,14 +55,20 @@ async def run_detection(
     # Handle empty text first — before any other validation
     if not text or not text.strip():
         return DetectionResult(
-            has_pii=False, entity_count=0, entity_types=[], language="unknown"
+            has_pii=False, entity_count=0, entity_types=[],
+            language=settings.language_detection_fallback,
+            language_confidence=None,
         )
 
     # Resolve language
+    language_confidence: float | None = None
     if language == "auto":
-        resolved_language = await detect_language(text)
+        detection = await detect_language(text)
+        resolved_language = detection.language
+        language_confidence = detection.confidence
     else:
         resolved_language = language
+        language_confidence = None  # Manual override
 
     # Validate language
     if resolved_language not in settings.supported_languages:
@@ -102,6 +110,7 @@ async def run_detection(
         entity_types=entity_types,
         language=resolved_language,
         raw_results=results,
+        language_confidence=language_confidence,
     )
 
 
@@ -138,6 +147,7 @@ async def detect_pii(
             entity_count=result.entity_count,
             entities_found=result.entity_types,
             language_detected=result.language,
+            language_confidence=result.language_confidence,
             details=[
                 EntityDetail(
                     entity_type=r["entity_type"],
@@ -154,4 +164,5 @@ async def detect_pii(
         entity_count=result.entity_count,
         entities_found=result.entity_types,
         language_detected=result.language,
+        language_confidence=result.language_confidence,
     )

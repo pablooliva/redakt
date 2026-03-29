@@ -3,6 +3,7 @@ from unittest.mock import AsyncMock, patch
 import httpx
 import pytest
 
+from redakt.services.language import LanguageDetection
 from tests.conftest import SAMPLE_PRESIDIO_RESULTS
 
 
@@ -43,22 +44,25 @@ class TestDetectEndpoint:
         assert "details" not in data
 
     def test_detect_language_auto(self, client, mock_presidio_analyze, mock_detect_language):
-        mock_detect_language.return_value = "de"
+        mock_detect_language.return_value = LanguageDetection("de", 0.92)
         mock_presidio_analyze.return_value = []
         resp = client.post("/api/detect", json={"text": "Mein Name ist Hans"})
         assert resp.status_code == 200
         data = resp.json()
         assert data["language_detected"] == "de"
+        assert data["language_confidence"] == 0.92
         mock_detect_language.assert_called_once()
 
     def test_detect_language_explicit(self, client, mock_presidio_analyze, mock_detect_language):
         mock_presidio_analyze.return_value = []
         resp = client.post("/api/detect", json={"text": "Hello world", "language": "en"})
         assert resp.status_code == 200
+        data = resp.json()
+        assert data["language_confidence"] is None  # Manual override
         mock_detect_language.assert_not_called()
 
     def test_detect_language_fallback(self, client, mock_presidio_analyze, mock_detect_language):
-        mock_detect_language.return_value = "en"
+        mock_detect_language.return_value = LanguageDetection("en", 0.0)
         mock_presidio_analyze.return_value = []
         resp = client.post("/api/detect", json={"text": "123"})
         assert resp.status_code == 200
@@ -94,7 +98,8 @@ class TestDetectEndpoint:
         assert resp.status_code == 200
         data = resp.json()
         assert data["has_pii"] is False
-        assert data["language_detected"] == "unknown"
+        assert data["language_detected"] == "en"  # Fallback language
+        assert data["language_confidence"] is None  # No detection attempted
 
     def test_detect_empty_text_with_unsupported_language(self, client):
         """EDGE-001: Empty text should return has_pii:false even with unsupported language."""
@@ -102,7 +107,7 @@ class TestDetectEndpoint:
         assert resp.status_code == 200
         data = resp.json()
         assert data["has_pii"] is False
-        assert data["language_detected"] == "unknown"
+        assert data["language_detected"] == "en"  # Fallback language
 
     def test_detect_whitespace_only(self, client):
         resp = client.post("/api/detect", json={"text": "   \n\t  "})

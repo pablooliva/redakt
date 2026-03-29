@@ -21,6 +21,7 @@ class DetectResponse(BaseModel):
     entity_count: int
     entities_found: list[str]
     language_detected: str
+    language_confidence: float | None = None
 
 
 class DetectDetailedResponse(DetectResponse):

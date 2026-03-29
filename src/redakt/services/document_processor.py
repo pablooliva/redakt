@@ -132,10 +132,11 @@ def build_unified_placeholder_map(
 
 async def detect_document_language(
     chunks: list[TextChunk], language: str
-) -> str:
+) -> tuple[str, float | None]:
     """Detect language once for the entire document.
 
     If language is "auto", concatenate first chunks up to 5KB and detect.
+    Returns (language, confidence) tuple.
     """
     if language != "auto":
         if language not in settings.supported_languages:
@@ -144,7 +145,7 @@ async def detect_document_language(
                 f"Supported languages: {', '.join(settings.supported_languages)}",
                 status_code=400,
             )
-        return language
+        return language, None  # Manual override, no confidence
 
     # Accumulate text sample from chunks (up to 5KB)
     sample_parts: list[str] = []
@@ -157,19 +158,20 @@ async def detect_document_language(
                 break
 
     if not sample_parts:
-        return "en"  # Fallback for empty documents
+        fallback = settings.language_detection_fallback
+        return fallback, None  # Fallback for empty documents
 
     sample = " ".join(sample_parts)[:5000]
-    resolved = await detect_language(sample)
+    detection = await detect_language(sample)
 
-    if resolved not in settings.supported_languages:
+    if detection.language not in settings.supported_languages:
         raise DocumentProcessingError(
-            f"Language '{resolved}' is not supported. "
+            f"Language '{detection.language}' is not supported. "
             f"Supported languages: {', '.join(settings.supported_languages)}",
             status_code=400,
         )
 
-    return resolved
+    return detection.language, detection.confidence
 
 
 # ---------------------------------------------------------------------------
@@ -231,7 +233,7 @@ async def process_document(
     warnings = list(dict.fromkeys(warnings))
 
     # Step 4: Detect language
-    resolved_language = await detect_document_language(valid_chunks, language)
+    resolved_language, language_confidence = await detect_document_language(valid_chunks, language)
 
     # Step 5: Merge allow lists
     merged_allow_list = list(settings.allow_list)
@@ -291,6 +293,7 @@ async def process_document(
         extraction=extraction,
         global_mappings=global_mappings,
         resolved_language=resolved_language,
+        language_confidence=language_confidence,
         file_size=file_size,
         warnings=warnings,
         entity_types=entity_types,
@@ -306,12 +309,14 @@ def _build_empty_response(
     warnings: list[str],
 ) -> dict:
     """Build response for documents with no extractable text."""
+    fallback = settings.language_detection_fallback
     if extension == ".xlsx":
         return {
             "anonymized_content": None,
             "anonymized_structured": {},
             "mappings": {},
-            "language_detected": "unknown",
+            "language_detected": fallback,
+            "language_confidence": None,
             "source_format": extension.lstrip("."),
             "metadata": {
                 "pages_processed": None,
@@ -328,7 +333,8 @@ def _build_empty_response(
             "anonymized_content": None,
             "anonymized_structured": extraction.metadata.get("original_structure"),
             "mappings": {},
-            "language_detected": "unknown",
+            "language_detected": fallback,
+            "language_confidence": None,
             "source_format": extension.lstrip("."),
             "metadata": {
                 "pages_processed": None,
@@ -345,7 +351,8 @@ def _build_empty_response(
             "anonymized_content": "",
             "anonymized_structured": None,
             "mappings": {},
-            "language_detected": "unknown",
+            "language_detected": fallback,
+            "language_confidence": None,
             "source_format": extension.lstrip("."),
             "metadata": {
                 "pages_processed": extraction.metadata.get("pages_processed"),
@@ -368,6 +375,7 @@ def _reassemble_output(
     extraction: ExtractionResult,
     global_mappings: dict[str, str],
     resolved_language: str,
+    language_confidence: float | None,
     file_size: int,
     warnings: list[str],
     entity_types: list[str],
@@ -379,34 +387,34 @@ def _reassemble_output(
     if extension == ".csv":
         return _reassemble_csv(
             valid_chunks, anonymized_chunks, extraction, global_mappings,
-            resolved_language, source_format, file_size, warnings, chunks_analyzed,
-            entity_types,
+            resolved_language, language_confidence, source_format, file_size,
+            warnings, chunks_analyzed, entity_types,
         )
     elif extension == ".json":
         return _reassemble_json(
             valid_chunks, anonymized_chunks, extraction, global_mappings,
-            resolved_language, source_format, file_size, warnings, chunks_analyzed,
-            entity_types,
+            resolved_language, language_confidence, source_format, file_size,
+            warnings, chunks_analyzed, entity_types,
         )
     elif extension == ".xlsx":
         return _reassemble_xlsx(
             valid_chunks, non_empty_chunks, skipped_indices, anonymized_chunks,
-            extraction, global_mappings, resolved_language, source_format,
-            file_size, warnings, chunks_analyzed, entity_types,
+            extraction, global_mappings, resolved_language, language_confidence,
+            source_format, file_size, warnings, chunks_analyzed, entity_types,
         )
     else:
         # Plain text output: txt, md, rtf, pdf, docx, xml, html
         return _reassemble_text(
             valid_chunks, non_empty_chunks, skipped_indices, anonymized_chunks,
-            extraction, global_mappings, resolved_language, source_format,
-            file_size, warnings, chunks_analyzed, entity_types,
+            extraction, global_mappings, resolved_language, language_confidence,
+            source_format, file_size, warnings, chunks_analyzed, entity_types,
         )
 
 
 def _reassemble_text(
     valid_chunks, non_empty_chunks, skipped_indices, anonymized_chunks,
-    extraction, global_mappings, resolved_language, source_format,
-    file_size, warnings, chunks_analyzed, entity_types,
+    extraction, global_mappings, resolved_language, language_confidence,
+    source_format, file_size, warnings, chunks_analyzed, entity_types,
 ) -> dict:
     """Reassemble plain text output."""
     # Rebuild text preserving skipped chunks
@@ -426,6 +434,7 @@ def _reassemble_text(
         "anonymized_structured": None,
         "mappings": global_mappings,
         "language_detected": resolved_language,
+        "language_confidence": language_confidence,
         "source_format": source_format,
         "metadata": {
             "pages_processed": extraction.metadata.get("pages_processed"),
@@ -441,8 +450,8 @@ def _reassemble_text(
 
 def _reassemble_csv(
     valid_chunks, anonymized_chunks, extraction, global_mappings,
-    resolved_language, source_format, file_size, warnings, chunks_analyzed,
-    entity_types,
+    resolved_language, language_confidence, source_format, file_size,
+    warnings, chunks_analyzed, entity_types,
 ) -> dict:
     """Reassemble anonymized CSV text."""
     delimiter = extraction.metadata.get("delimiter", ",")
@@ -481,6 +490,7 @@ def _reassemble_csv(
         "anonymized_structured": None,
         "mappings": global_mappings,
         "language_detected": resolved_language,
+        "language_confidence": language_confidence,
         "source_format": source_format,
         "metadata": {
             "pages_processed": None,
@@ -496,8 +506,8 @@ def _reassemble_csv(
 
 def _reassemble_json(
     valid_chunks, anonymized_chunks, extraction, global_mappings,
-    resolved_language, source_format, file_size, warnings, chunks_analyzed,
-    entity_types,
+    resolved_language, language_confidence, source_format, file_size,
+    warnings, chunks_analyzed, entity_types,
 ) -> dict:
     """Reassemble anonymized JSON structure."""
     original_structure = extraction.metadata.get("original_structure")
@@ -515,6 +525,7 @@ def _reassemble_json(
         "anonymized_structured": anonymized_structure,
         "mappings": global_mappings,
         "language_detected": resolved_language,
+        "language_confidence": language_confidence,
         "source_format": source_format,
         "metadata": {
             "pages_processed": None,
@@ -559,8 +570,8 @@ def _replace_json_strings(obj, path: str, path_map: dict[str, str], depth: int =
 
 def _reassemble_xlsx(
     valid_chunks, non_empty_chunks, skipped_indices, anonymized_chunks,
-    extraction, global_mappings, resolved_language, source_format,
-    file_size, warnings, chunks_analyzed, entity_types,
+    extraction, global_mappings, resolved_language, language_confidence,
+    source_format, file_size, warnings, chunks_analyzed, entity_types,
 ) -> dict:
     """Reassemble anonymized XLSX structure."""
     sheets_data = extraction.metadata.get("sheets_data", {})
@@ -597,6 +608,7 @@ def _reassemble_xlsx(
         "anonymized_structured": anonymized_sheets,
         "mappings": global_mappings,
         "language_detected": resolved_language,
+        "language_confidence": language_confidence,
         "source_format": source_format,
         "metadata": {
             "pages_processed": None,

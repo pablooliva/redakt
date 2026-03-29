@@ -13,3 +13,4 @@ class AnonymizeResponse(BaseModel):
     anonymized_text: str
     mappings: dict[str, str]
     language_detected: str
+    language_confidence: float | None = None

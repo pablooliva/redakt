@@ -28,11 +28,13 @@ class AnonymizationResult:
         mappings: dict[str, str],
         entity_types: list[str],
         language: str,
+        language_confidence: float | None = None,
     ):
         self.anonymized_text = anonymized_text
         self.mappings = mappings
         self.entity_types = entity_types
         self.language = language
+        self.language_confidence = language_confidence
 
 
 async def run_anonymization(
@@ -46,13 +48,20 @@ async def run_anonymization(
     """Shared anonymization logic used by both API and web routes."""
     # Empty text — return unchanged
     if not text or not text.strip():
-        return AnonymizationResult(text, {}, [], "unknown")
+        return AnonymizationResult(
+            text, {}, [], settings.language_detection_fallback,
+            language_confidence=None,
+        )
 
     # Resolve language
+    language_confidence: float | None = None
     if language == "auto":
-        resolved_language = await detect_language(text)
+        detection = await detect_language(text)
+        resolved_language = detection.language
+        language_confidence = detection.confidence
     else:
         resolved_language = language
+        language_confidence = None  # Manual override
 
     # Validate language
     if resolved_language not in settings.supported_languages:
@@ -93,7 +102,7 @@ async def run_anonymization(
     # Anonymize: resolve overlaps, generate placeholders, replace text
     anonymized_text, mappings, entity_types = anonymize_entities(text, results)
 
-    return AnonymizationResult(anonymized_text, mappings, entity_types, resolved_language)
+    return AnonymizationResult(anonymized_text, mappings, entity_types, resolved_language, language_confidence)
 
 
 @router.post("/anonymize")
@@ -128,4 +137,5 @@ async def anonymize(
         anonymized_text=result.anonymized_text,
         mappings=result.mappings,
         language_detected=result.language,
+        language_confidence=result.language_confidence,
     )

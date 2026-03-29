@@ -16,6 +16,6 @@
         <h2>No PII Detected</h2>
         <p>No personally identifiable information was found in the text.</p>
     {% endif %}
-    <p class="meta">Language: {{ language_detected }}</p>
+    <p class="meta">Language: {{ language_detected }}{% if language_confidence is not none %} | Confidence: {% if language_confidence >= 0.8 %}High{% elif language_confidence >= 0.5 %}Medium{% elif language_confidence > 0.0 %}Low{% else %}None{% endif %}{% endif %}</p>
 </div>
 {% endif %}

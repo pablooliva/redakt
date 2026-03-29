@@ -150,6 +150,7 @@ async def upload_document(
         anonymized_structured=result["anonymized_structured"],
         mappings=result["mappings"],
         language_detected=result["language_detected"],
+        language_confidence=result.get("language_confidence"),
         source_format=result["source_format"],
         metadata=DocumentMetadata(**result["metadata"]),
     )
