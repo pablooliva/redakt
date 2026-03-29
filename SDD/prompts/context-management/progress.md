@@ -574,3 +574,79 @@ Research phase complete. RESEARCH-005-allow-lists.md finalized. Ready for /plann
 8. **PII assertion softened** — "NOT PII" changed to "typically not PII" with sensitivity guidance
 9. **4 missing perspectives added** — Enterprise IT/Ops, Non-English users, Compliance/Legal, QA/Testing
 10. **Performance analysis added** — O(n) list scan documented for exact mode; O(n*m) DoS risk quantified
+
+---
+
+## SPEC-005: Planning/Specification Phase
+
+**Status:** Draft. Ready for critical review.
+
+### Documents
+
+- Specification: `SDD/requirements/SPEC-005-allow-lists.md`
+- Based on: `SDD/research/RESEARCH-005-allow-lists.md`
+- Research critical review: `SDD/reviews/CRITICAL-RESEARCH-allow-lists-20260329.md` (all findings resolved)
+
+### Specification Summary
+
+- 12 functional requirements (REQ-001 through REQ-012)
+- 3 performance/security UX requirements (PERF-001/002, SEC-001/002/003, UX-001/002)
+- 11 edge cases documented with test approaches (EDGE-001 through EDGE-011)
+- 4 failure scenarios with recovery strategies (FAIL-001 through FAIL-004)
+- 4 identified risks with mitigations (RISK-001 through RISK-004)
+- Full API contract + Web UI contract defined
+- Suggested implementation order (8 steps)
+- 6 new files to create, 8 existing files to modify
+
+### Key Design Decisions Captured
+
+1. Shared `merge_allow_lists()` utility replaces 3 duplicated merge blocks
+2. `parse_allow_list()` for comma-separated web UI input (consistent with existing `_parse_comma_separated()`)
+3. Input validation: 100 terms max, 200 chars per term, strip whitespace, reject empty (hard v1 requirement)
+4. Audit logging: `allow_list_count` metadata only, never log term values
+5. Instance-wide terms displayed as read-only tags via shared Jinja2 partial
+6. Case-sensitive exact match for v1 (documented limitation, helper text in UI)
+7. No regex support, no admin UI for v1
+8. Deduplication on merge (set-based union semantics)
+
+### Scope Assessment
+
+Small-to-medium feature. Backend allow_list plumbing is fully implemented. Primary work:
+- New shared utility module (`utils.py`) with parse/validate/merge functions
+- 3 template updates (add allow_list input + instance terms display)
+- 3 pages.py handler updates (accept and pass allow_list)
+- 3 router/processor updates (replace duplicated merge logic)
+- Audit logging enhancement (add allow_list_count)
+- ~27 new unit/integration tests + ~8 E2E tests
+
+### Ready For
+
+- Critical review of specification
+- Then `/sdd:implement` to begin coding
+
+Planning phase validation complete. SPEC-005-allow-lists.md finalized.
+
+---
+
+## SPEC-005 Critical Review Resolution — 2026-03-29
+
+**Status:** All findings resolved. Spec updated and ready for implementation.
+
+### Review Document
+- `SDD/reviews/CRITICAL-SPEC-allow-lists-20260329.md` — 12 findings, ALL resolved
+
+### Key Spec Changes
+- Validation placement unified: `validate_allow_list()` called inside `run_detection()`/`run_anonymization()`/`process_document()` before merge (single validation point for API + web UI)
+- Validation is explicitly fail-closed (reject entire request, no truncation)
+- `dict.fromkeys()` replaces set operations for order-preserving dedup (resolves PERF-002/REQ-007/EDGE-005 contradiction)
+- `merge_allow_lists()` returns `None` for empty (not `[]`), callers pass directly without `or None`
+- `_parse_comma_separated()` dual-use resolved: generic parser + allow-list-specific wrapper with validation
+- Case-insensitive deferral justified with technical rationale (Presidio architecture constraints)
+- Audit `allow_list_count` specified as total merged count with rationale
+- Instance-wide terms: startup warning at 500+ terms, uncapped but admin-trusted
+- EDGE-012 + RISK-005/006 added (comma-containing terms, dual-use parser risk)
+- Accessibility: `aria-describedby`, `role="group"`, per-term `aria-label`
+- Unicode test examples fixed to actual Unicode characters
+- Helper text placement: input first, instance terms below
+- Regex mode post-v1 note with `re.search()` partial-match warning
+- Secrets management gap noted in RISK-003
