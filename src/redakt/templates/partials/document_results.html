@@ -1,0 +1,60 @@
+{% if error %}
+<div class="result error">
+    <p>{{ error }}</p>
+</div>
+{% else %}
+<div id="document-output" data-mappings='{{ mappings|tojson }}'>
+    <h2>Anonymized Content</h2>
+
+    {% if xlsx_sheets %}
+    {# XLSX: render as tables per sheet #}
+    <div id="anonymized-content">
+    {% for sheet_name, rows in xlsx_sheets.items() %}
+    <h3>{{ sheet_name }}</h3>
+    <div class="table-wrapper">
+        <table class="sheet-table">
+            <tbody>
+                {% for row in rows %}
+                <tr>
+                    {% for cell in row %}
+                    <td>{{ cell if cell is not none else "" }}</td>
+                    {% endfor %}
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endfor %}
+    </div>
+    {% elif json_content %}
+    {# JSON: render as formatted JSON #}
+    <pre><code id="anonymized-content">{{ json_content }}</code></pre>
+    {% else %}
+    {# All other formats: plain text #}
+    <pre id="anonymized-content">{{ anonymized_content }}</pre>
+    {% endif %}
+
+    <button id="copy-btn" type="button">Copy to clipboard</button>
+
+    {% if warnings %}
+    <div class="warnings">
+        {% for warning in warnings %}
+        <p class="warning">{{ warning }}</p>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <details>
+        <summary>Mapping ({{ mapping_count }} entr{{ "y" if mapping_count == 1 else "ies" }})</summary>
+        <table>
+            <thead><tr><th>Placeholder</th><th>Original</th></tr></thead>
+            <tbody>
+                {% for placeholder, original in mappings.items() %}
+                <tr><td>{{ placeholder }}</td><td>{{ original }}</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </details>
+    <p class="meta">Format: {{ source_format }} | Language: {{ language_detected }} | Chunks analyzed: {{ chunks_analyzed }}</p>
+</div>
+{% endif %}

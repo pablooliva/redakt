@@ -41,10 +41,27 @@ def mock_anon_detect_language():
 
 
 @pytest.fixture
+def mock_doc_detect_language():
+    """Mock the language detection service in the document processor."""
+    with patch("redakt.services.document_processor.detect_language", new_callable=AsyncMock) as mock:
+        mock.return_value = "en"
+        yield mock
+
+
+@pytest.fixture
 def client():
     """Test client with mocked httpx client on app state."""
     with TestClient(app) as c:
         yield c
+
+
+@pytest.fixture(autouse=True)
+def reset_upload_semaphore():
+    """Reset the module-level upload semaphore between tests."""
+    import redakt.routers.documents as docs_mod
+    docs_mod._upload_semaphore = None
+    yield
+    docs_mod._upload_semaphore = None
 
 
 SAMPLE_PRESIDIO_RESULTS = [

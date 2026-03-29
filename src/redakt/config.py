@@ -19,6 +19,17 @@ class Settings(BaseSettings):
     language_detection_timeout: float = 2.0
     log_level: str = "WARNING"
 
+    # Document upload settings
+    max_file_size: int = 10 * 1024 * 1024  # 10MB
+    supported_file_types: list[str] = [
+        ".txt", ".md", ".csv", ".json", ".xml", ".html",
+        ".xlsx", ".docx", ".rtf", ".pdf",
+    ]
+    document_processing_timeout: float = 120.0
+    max_zip_uncompressed_size: int = 100 * 1024 * 1024  # 100MB
+    max_concurrent_uploads: int = 3
+    max_xlsx_cells: int = 50_000
+
     model_config = {"env_prefix": "REDAKT_", "env_nested_delimiter": "__"}
 
 

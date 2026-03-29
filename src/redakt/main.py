@@ -1,13 +1,17 @@
 from contextlib import asynccontextmanager
 from pathlib import Path
 
+# CRITICAL: defuse stdlib XML parsers BEFORE any library that uses XML (openpyxl, python-docx)
+import defusedxml
+defusedxml.defuse_stdlib()
+
 import httpx
 from fastapi import FastAPI, Request, Response
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.base import BaseHTTPMiddleware
 
 from redakt.config import settings
-from redakt.routers import anonymize, detect, health, pages
+from redakt.routers import anonymize, detect, documents, health, pages
 from redakt.services.audit import setup_logging
 
 
@@ -47,6 +51,7 @@ app.add_middleware(SecurityHeadersMiddleware)
 
 app.include_router(anonymize.router)
 app.include_router(detect.router)
+app.include_router(documents.router)
 app.include_router(health.router)
 app.include_router(pages.router)
 

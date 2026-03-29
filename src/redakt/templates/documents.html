@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% block title %}Documents - Redakt{% endblock %}
+
+{% block content %}
+<h1>Document Anonymization</h1>
+<p>Upload a document to anonymize PII. The anonymized content and mapping will be returned as JSON.</p>
+
+<section id="upload-section">
+    <h2>Upload Document</h2>
+
+    <div class="format-info">
+        <p><strong>Supported formats:</strong> .txt, .md, .csv, .json, .xml, .html, .xlsx, .docx, .rtf, .pdf</p>
+        <p><strong>Maximum file size:</strong> 10 MB</p>
+        <p class="note">Detection accuracy is lower for short cell values (single names, abbreviations). For best results, use cells with full names and complete information.</p>
+    </div>
+
+    <form id="document-form" hx-post="/documents/submit" hx-target="#document-results" hx-indicator="#spinner" hx-encoding="multipart/form-data" data-max-file-size="{{ max_file_size }}">
+        <div class="form-group">
+            <label for="file">Select file</label>
+            <input type="file" id="file" name="file" accept=".txt,.md,.csv,.json,.xml,.html,.xlsx,.docx,.rtf,.pdf" required>
+            <div id="file-error" class="error-message" style="display: none;"></div>
+        </div>
+
+        <div class="form-group">
+            <label>Language</label>
+            <div class="toggle-group">
+                <label class="toggle">
+                    <input type="radio" name="language" value="auto" checked>
+                    <span>Auto</span>
+                </label>
+                <label class="toggle">
+                    <input type="radio" name="language" value="en">
+                    <span>English</span>
+                </label>
+                <label class="toggle">
+                    <input type="radio" name="language" value="de">
+                    <span>German</span>
+                </label>
+            </div>
+        </div>
+
+        <button type="submit">Upload &amp; Anonymize</button>
+        <span id="spinner" class="htmx-indicator">Processing document...</span>
+    </form>
+
+    <div id="document-results"></div>
+</section>
+
+<section id="deanonymize-section" class="disabled">
+    <h2>Deanonymize</h2>
+    <p>Paste the AI response below to restore original PII values.</p>
+
+    <div class="form-group">
+        <label for="deanonymize-input">AI response text</label>
+        <textarea id="deanonymize-input" rows="8" placeholder="Paste AI response containing placeholders here..." disabled></textarea>
+    </div>
+
+    <button id="deanonymize-btn" disabled>Deanonymize</button>
+    <button id="clear-mapping-btn" disabled>Clear mapping</button>
+
+    <div id="deanonymize-output"></div>
+</section>
+
+<script src="/static/document-upload.js"></script>
+<script src="/static/deanonymize-documents.js"></script>
+{% endblock %}

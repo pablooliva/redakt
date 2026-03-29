@@ -3,7 +3,7 @@
     <p>{{ error }}</p>
 </div>
 {% else %}
-<div id="anonymize-output" data-mappings='{{ mappings_json }}'>
+<div id="anonymize-output" data-mappings='{{ mappings|tojson }}'>
     <h2>Anonymized Text</h2>
     <pre id="anonymized-text">{{ anonymized_text }}</pre>
     <button id="copy-btn" type="button">Copy to clipboard</button>

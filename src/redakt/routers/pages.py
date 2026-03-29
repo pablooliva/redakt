@@ -1,15 +1,21 @@
+import asyncio
 import json
 import logging
 from pathlib import Path
 
-from fastapi import APIRouter, Depends, Form, Request
+import httpx
+from fastapi import APIRouter, Depends, Form, Request, UploadFile
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 
 from redakt.config import settings
+from redakt.models.document import DocumentMetadata
 from redakt.routers.anonymize import AnonymizationError, AnonymizationResult, run_anonymization
 from redakt.routers.detect import DetectionError, run_detection
-from redakt.services.audit import log_anonymization, log_detection
+from redakt.services.audit import log_anonymization, log_detection, log_document_upload
+from redakt.routers.documents import _get_upload_semaphore
+from redakt.services.document_processor import DocumentProcessingError, process_document
+from redakt.services.extractors import ExtractionError
 from redakt.services.presidio import PresidioClient, get_presidio_client
 
 logger = logging.getLogger("redakt")
@@ -128,4 +134,117 @@ async def anonymize_submit(
             "mapping_count": len(result.mappings),
             "language_detected": result.language,
         },
+    )
+
+
+@router.get("/documents", response_class=HTMLResponse)
+async def documents_page(request: Request) -> HTMLResponse:
+    return templates.TemplateResponse(
+        request, "documents.html", {"max_file_size": settings.max_file_size}
+    )
+
+
+@router.post("/documents/submit", response_class=HTMLResponse)
+async def documents_submit(
+    request: Request,
+    file: UploadFile,
+    language: str = Form("auto"),
+    presidio: PresidioClient = Depends(get_presidio_client),
+) -> HTMLResponse:
+    raw = await file.read()
+    file_size = len(raw)
+
+    # Get extension
+    extension = ""
+    if file.filename:
+        extension = Path(file.filename).suffix.lower()
+
+    # Acquire upload semaphore (non-blocking, shared with API route)
+    sem = _get_upload_semaphore()
+    if sem.locked():
+        return templates.TemplateResponse(
+            request,
+            "partials/document_results.html",
+            {"error": "Too many documents are being processed. Please try again shortly."},
+        )
+
+    try:
+        async with sem:
+            result = await asyncio.wait_for(
+                process_document(
+                    raw=raw,
+                    extension=extension,
+                    file_size=file_size,
+                    presidio=presidio,
+                    language=language,
+                ),
+                timeout=settings.document_processing_timeout,
+            )
+    except asyncio.TimeoutError:
+        return templates.TemplateResponse(
+            request,
+            "partials/document_results.html",
+            {"error": "Document processing timed out. Please try a smaller file."},
+        )
+    except (ExtractionError, DocumentProcessingError) as exc:
+        return templates.TemplateResponse(
+            request,
+            "partials/document_results.html",
+            {"error": exc.message},
+        )
+    except httpx.ConnectError:
+        return templates.TemplateResponse(
+            request,
+            "partials/document_results.html",
+            {"error": "Service is starting up, please wait..."},
+        )
+    except httpx.TimeoutException:
+        return templates.TemplateResponse(
+            request,
+            "partials/document_results.html",
+            {"error": "Processing timed out. Please try again."},
+        )
+    except httpx.HTTPStatusError:
+        return templates.TemplateResponse(
+            request,
+            "partials/document_results.html",
+            {"error": "PII detection service returned an error."},
+        )
+
+    entity_types = result.pop("entity_types", [])
+    log_document_upload(
+        file_type=extension.lstrip("."),
+        file_size_bytes=file_size,
+        entity_count=len(result["mappings"]),
+        entity_types=entity_types,
+        language=result["language_detected"],
+        source="web_ui",
+    )
+
+    metadata = result["metadata"]
+    source_format = result["source_format"]
+
+    # Prepare template context
+    context = {
+        "mappings": result["mappings"],
+        "mappings_json": json.dumps(result["mappings"]),
+        "mapping_count": len(result["mappings"]),
+        "language_detected": result["language_detected"],
+        "source_format": source_format,
+        "chunks_analyzed": metadata["chunks_analyzed"],
+        "warnings": metadata.get("warnings", []),
+        "xlsx_sheets": None,
+        "json_content": None,
+        "anonymized_content": None,
+    }
+
+    if source_format == "xlsx" and result["anonymized_structured"]:
+        context["xlsx_sheets"] = result["anonymized_structured"]
+    elif source_format == "json" and result["anonymized_structured"] is not None:
+        context["json_content"] = json.dumps(result["anonymized_structured"], indent=2)
+    else:
+        context["anonymized_content"] = result.get("anonymized_content", "")
+
+    return templates.TemplateResponse(
+        request, "partials/document_results.html", context
     )

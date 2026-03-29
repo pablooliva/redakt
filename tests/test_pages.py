@@ -158,7 +158,8 @@ class TestAnonymizePage:
             data={"text": text, "language": "en"},
         )
         assert resp.status_code == 200
-        # The data-mappings value is HTML-escaped by Jinja2; extract and decode
+        # The data-mappings value is JSON-serialized by Jinja2's |tojson filter
+        # which escapes single quotes to \u0027 (safe for single-quoted HTML attribute)
         import html
         import re
         match = re.search(r"data-mappings='([^']*)'", resp.text)

@@ -69,3 +69,33 @@ def log_anonymization(
     source: str,
 ) -> None:
     _emit_audit("anonymize", entity_count, entity_types, language, source)
+
+
+def log_document_upload(
+    file_type: str,
+    file_size_bytes: int,
+    entity_count: int,
+    entity_types: list[str],
+    language: str,
+    source: str,
+) -> None:
+    audit_logger = logging.getLogger("redakt.audit")
+    record = audit_logger.makeRecord(
+        name="redakt.audit",
+        level=logging.INFO,
+        fn="",
+        lno=0,
+        msg="",
+        args=(),
+        exc_info=None,
+    )
+    record.audit_data = {
+        "action": "document_upload",
+        "file_type": file_type,
+        "file_size_bytes": file_size_bytes,
+        "entity_count": entity_count,
+        "entity_types": entity_types,
+        "language": language,
+        "source": source,
+    }
+    audit_logger.handle(record)
