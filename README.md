@@ -2,6 +2,8 @@
 
 Open-source PII detection and anonymization wrapper around [Microsoft Presidio](https://github.com/microsoft/presidio). Web UI and REST API for GDPR-compliant redaction before pasting content into LLMs. Designed for enterprise internal deployment.
 
+Read the launch announcement - [Meet Redakt: Practical GDPR Compliance for AI Teams](https://pablooliva.de/the-closing-window/meet-redakt-practical-gdpr-compliance-for-ai-teams/)
+
 ## What It Does
 
 1. **Detect PII** — Send text, get back whether it contains personal data (with entity types and counts)
