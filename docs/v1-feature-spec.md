@@ -206,6 +206,27 @@ In this example, "Acme Corp" and "Berlin" would not be flagged, but "John Smith"
 
 ---
 
+### Feature 5b: Per-Entity Score Thresholds
+
+**User story:** Generic terms like "Munich" or "today" trip `LOCATION`/`DATE_TIME` recognizers at borderline confidence and clutter results, but the same recognizers must still flag full addresses or specific dates when confidence is high.
+
+**Behavior:**
+- An instance-wide map of per-entity floors is configurable via `entity_score_thresholds` (default: `{"LOCATION": 0.85, "DATE_TIME": 0.95}`).
+- A per-request `entity_score_thresholds` field on `/api/detect` and `/api/anonymize` overrides the instance map per key (request key wins).
+- Implemented as a post-filter on Presidio's analyzer response: results whose `entity_type` has a floor and whose `score` is below it are dropped before the response is built. Entity types not in the map are unaffected (the global `score_threshold` still applies).
+- Floors only raise the bar above `score_threshold`. To pass a result through that the floor would otherwise drop, set the per-request override to a lower value (e.g. `0.0` to disable for that entity in that request).
+
+**Example request:**
+```json
+{
+  "text": "John Smith was in Munich today",
+  "entity_score_thresholds": {"LOCATION": 0.5}
+}
+```
+With the default `DATE_TIME: 0.95` still in force, "today" stays filtered; the lowered `LOCATION` floor lets borderline city matches through.
+
+---
+
 ### Feature 6: Audit Logging
 
 **User story:** As a compliance officer, I need to demonstrate that employees are properly anonymizing data before sending it to AI tools. I need an audit trail of anonymization activity.

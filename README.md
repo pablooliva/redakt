@@ -87,6 +87,21 @@ curl -X POST http://localhost:8000/api/detect \
 }
 ```
 
+### Tuning sensitivity per entity type
+
+Some recognizers (notably `LOCATION` and `DATE_TIME`) fire at borderline confidence on generic terms like "Munich" or "today." Redakt applies an instance-wide map of per-entity score floors after Presidio returns; results below an entity's floor are dropped. Defaults: `LOCATION: 0.85`, `DATE_TIME: 0.95`.
+
+Override per request via `entity_score_thresholds`:
+
+```json
+{
+  "text": "John Smith was in Munich today",
+  "entity_score_thresholds": {"LOCATION": 0.5}
+}
+```
+
+Per-request keys override the instance map; entity types not listed use the global `score_threshold` (0.35 by default). Set the instance-wide map via the `REDAKT_ENTITY_SCORE_THRESHOLDS` env var (JSON-encoded).
+
 ### Example: Anonymize + Deanonymize Round-Trip
 
 ```bash
@@ -157,11 +172,14 @@ uv run pytest tests/e2e/
 
 ### Configuration
 
+Defaults are defined in `src/redakt/config.py`. Set any of the following env vars (or place them in a `.env` file — see `.env.example`) to override at startup.
+
 | Environment Variable | Default | Description |
 |---------------------|---------|-------------|
 | `REDAKT_PRESIDIO_ANALYZER_URL` | `http://localhost:5001` | Presidio Analyzer URL |
 | `REDAKT_PRESIDIO_ANONYMIZER_URL` | `http://localhost:5001` | Presidio Anonymizer URL |
 | `REDAKT_LOG_LEVEL` | `WARNING` | Application log level |
+| `REDAKT_ENTITY_SCORE_THRESHOLDS` | `{"LOCATION": 0.85, "DATE_TIME": 0.95}` | JSON map of per-entity score floors applied after Presidio analysis |
 | `REDAKT_AUDIT_LOG_FILE` | _(empty)_ | Optional file path for audit logs (in addition to stdout) |
 | `REDAKT_AUDIT_LOG_MAX_BYTES` | `10485760` | Max audit log file size before rotation (10 MB) |
 | `REDAKT_AUDIT_LOG_BACKUP_COUNT` | `5` | Number of rotated audit log backups to keep |

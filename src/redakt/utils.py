@@ -80,6 +80,34 @@ def merge_allow_lists(
     return deduped if deduped else None
 
 
+def merge_entity_thresholds(
+    instance_map: dict[str, float],
+    per_request_map: dict[str, float] | None,
+) -> dict[str, float]:
+    """Merge instance-wide and per-request entity score floors.
+
+    Per-request keys override instance keys.
+    """
+    merged = dict(instance_map)
+    if per_request_map:
+        merged.update(per_request_map)
+    return merged
+
+
+def filter_by_entity_thresholds(
+    results: list[dict],
+    thresholds: dict[str, float],
+) -> list[dict]:
+    """Drop analyzer results whose entity_type has a per-entity floor and whose score is below it.
+
+    Entity types not present in `thresholds` are unaffected (they're already
+    above the global score_threshold that Presidio applied).
+    """
+    if not thresholds:
+        return results
+    return [r for r in results if r["score"] >= thresholds.get(r["entity_type"], 0.0)]
+
+
 def validate_instance_allow_list(allow_list: list[str]) -> list[str]:
     """Validate instance-wide allow list at startup. Logs warnings but never blocks startup.
 

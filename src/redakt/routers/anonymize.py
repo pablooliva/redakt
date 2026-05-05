@@ -10,7 +10,12 @@ from redakt.services.anonymizer import anonymize_entities
 from redakt.services.audit import log_anonymization
 from redakt.services.language import detect_language
 from redakt.services.presidio import PresidioClient, get_presidio_client
-from redakt.utils import merge_allow_lists, validate_allow_list
+from redakt.utils import (
+    filter_by_entity_thresholds,
+    merge_allow_lists,
+    merge_entity_thresholds,
+    validate_allow_list,
+)
 
 logger = logging.getLogger("redakt")
 router = APIRouter(prefix="/api", tags=["anonymization"])
@@ -47,6 +52,7 @@ async def run_anonymization(
     presidio: PresidioClient,
     entities: list[str] | None = None,
     allow_list: list[str] | None = None,
+    entity_score_thresholds: dict[str, float] | None = None,
 ) -> AnonymizationResult:
     """Shared anonymization logic used by both API and web routes."""
     # Empty text — return unchanged
@@ -104,6 +110,11 @@ async def run_anonymization(
             )
         raise
 
+    merged_thresholds = merge_entity_thresholds(
+        settings.entity_score_thresholds, entity_score_thresholds
+    )
+    results = filter_by_entity_thresholds(results, merged_thresholds)
+
     # Anonymize: resolve overlaps, generate placeholders, replace text
     anonymized_text, mappings, entity_types = anonymize_entities(text, results)
 
@@ -129,6 +140,7 @@ async def anonymize(
             presidio=presidio,
             entities=body.entities,
             allow_list=body.allow_list,
+            entity_score_thresholds=body.entity_score_thresholds,
         )
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc))
