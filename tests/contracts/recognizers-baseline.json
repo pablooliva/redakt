@@ -1,0 +1,751 @@
+{
+  "de": [
+    {
+      "name": "CryptoRecognizer",
+      "patterns": [
+        {
+          "name": "Crypto (Medium)",
+          "score": 0.5
+        }
+      ],
+      "supported_entities": [
+        "CRYPTO"
+      ],
+      "supported_language": "de"
+    },
+    {
+      "name": "DateRecognizer",
+      "patterns": [
+        {
+          "name": "ISO 8601 datetime",
+          "score": 0.8
+        },
+        {
+          "name": "MMM-yyyy or MMM-yy",
+          "score": 0.6
+        },
+        {
+          "name": "dd-MMM or dd-MMM",
+          "score": 0.6
+        },
+        {
+          "name": "dd-MMM-yyyy or dd-MMM-yy",
+          "score": 0.6
+        },
+        {
+          "name": "dd-mm-yyyy",
+          "score": 0.6
+        },
+        {
+          "name": "dd.mm.yyyy or dd.mm.yy",
+          "score": 0.6
+        },
+        {
+          "name": "dd/mm/yyyy or dd/mm/yy",
+          "score": 0.6
+        },
+        {
+          "name": "mm-dd-yyyy",
+          "score": 0.6
+        },
+        {
+          "name": "mm/dd/yyyy or mm/dd/yy",
+          "score": 0.6
+        },
+        {
+          "name": "mm/yy or m/yy",
+          "score": 0.1
+        },
+        {
+          "name": "mm/yyyy or m/yyyy",
+          "score": 0.2
+        },
+        {
+          "name": "yyyy-mm-dd",
+          "score": 0.6
+        },
+        {
+          "name": "yyyy/mm/dd",
+          "score": 0.6
+        }
+      ],
+      "supported_entities": [
+        "DATE_TIME"
+      ],
+      "supported_language": "de"
+    },
+    {
+      "name": "EmailRecognizer",
+      "patterns": [
+        {
+          "name": "Email (Medium)",
+          "score": 0.5
+        }
+      ],
+      "supported_entities": [
+        "EMAIL_ADDRESS"
+      ],
+      "supported_language": "de"
+    },
+    {
+      "name": "IbanRecognizer",
+      "patterns": [
+        {
+          "name": "IBAN Generic",
+          "score": 0.5
+        }
+      ],
+      "supported_entities": [
+        "IBAN_CODE"
+      ],
+      "supported_language": "de"
+    },
+    {
+      "name": "IpRecognizer",
+      "patterns": [
+        {
+          "name": "IPv4",
+          "score": 0.6
+        },
+        {
+          "name": "IPv6",
+          "score": 0.1
+        },
+        {
+          "name": "IPv6",
+          "score": 0.6
+        }
+      ],
+      "supported_entities": [
+        "IP_ADDRESS"
+      ],
+      "supported_language": "de"
+    },
+    {
+      "name": "MedicalLicenseRecognizer",
+      "patterns": [
+        {
+          "name": "USA DEA Certificate Number (weak)",
+          "score": 0.4
+        }
+      ],
+      "supported_entities": [
+        "MEDICAL_LICENSE"
+      ],
+      "supported_language": "de"
+    },
+    {
+      "name": "MacAddressRecognizer",
+      "patterns": [
+        {
+          "name": "MAC_CISCO_DOT",
+          "score": 0.6
+        },
+        {
+          "name": "MAC_COLON_OR_HYPHEN",
+          "score": 0.6
+        }
+      ],
+      "supported_entities": [
+        "MAC_ADDRESS"
+      ],
+      "supported_language": "de"
+    },
+    {
+      "name": "PhoneRecognizer",
+      "patterns": [],
+      "supported_entities": [
+        "PHONE_NUMBER"
+      ],
+      "supported_language": "de"
+    },
+    {
+      "name": "UrlRecognizer",
+      "patterns": [
+        {
+          "name": "Non schema URL",
+          "score": 0.5
+        },
+        {
+          "name": "Quoted Non-schema URL",
+          "score": 0.5
+        },
+        {
+          "name": "Quoted URL",
+          "score": 0.6
+        },
+        {
+          "name": "Standard Url",
+          "score": 0.6
+        }
+      ],
+      "supported_entities": [
+        "URL"
+      ],
+      "supported_language": "de"
+    },
+    {
+      "name": "DeTaxIdRecognizer",
+      "patterns": [
+        {
+          "name": "Steueridentifikationsnummer (High)",
+          "score": 0.5
+        }
+      ],
+      "supported_entities": [
+        "DE_TAX_ID"
+      ],
+      "supported_language": "de"
+    },
+    {
+      "name": "DeVatIdRecognizer",
+      "patterns": [
+        {
+          "name": "Umsatzsteuer-Identifikationsnummer USt-IdNr. (DE + 9 digits)",
+          "score": 0.5
+        }
+      ],
+      "supported_entities": [
+        "DE_VAT_ID"
+      ],
+      "supported_language": "de"
+    },
+    {
+      "name": "DePassportRecognizer",
+      "patterns": [
+        {
+          "name": "Reisepassnummer (Relaxed)",
+          "score": 0.2
+        },
+        {
+          "name": "Reisepassnummer (Strict ICAO charset)",
+          "score": 0.4
+        }
+      ],
+      "supported_entities": [
+        "DE_PASSPORT"
+      ],
+      "supported_language": "de"
+    },
+    {
+      "name": "DeIdCardRecognizer",
+      "patterns": [
+        {
+          "name": "Personalausweisnummer (Relaxed, 9 alphanumeric)",
+          "score": 0.15
+        },
+        {
+          "name": "Personalausweisnummer alt (T + 8 Ziffern)",
+          "score": 0.5
+        },
+        {
+          "name": "Personalausweisnummer nPA (Strict ICAO charset, 9 chars)",
+          "score": 0.4
+        }
+      ],
+      "supported_entities": [
+        "DE_ID_CARD"
+      ],
+      "supported_language": "de"
+    },
+    {
+      "name": "DeHealthInsuranceRecognizer",
+      "patterns": [
+        {
+          "name": "Krankenversicherungsnummer KVNR (letter + 9 digits)",
+          "score": 0.3
+        }
+      ],
+      "supported_entities": [
+        "DE_HEALTH_INSURANCE"
+      ],
+      "supported_language": "de"
+    },
+    {
+      "name": "DeKfzRecognizer",
+      "patterns": [
+        {
+          "name": "KFZ-Kennzeichen (ASCII only, Bindestrich + Leerzeichen)",
+          "score": 0.2
+        },
+        {
+          "name": "KFZ-Kennzeichen (ASCII only, mit Leerzeichen)",
+          "score": 0.2
+        },
+        {
+          "name": "KFZ-Kennzeichen (Bindestrich + Leerzeichen)",
+          "score": 0.3
+        },
+        {
+          "name": "KFZ-Kennzeichen (mit Bindestrich)",
+          "score": 0.3
+        },
+        {
+          "name": "KFZ-Kennzeichen (mit Leerzeichen)",
+          "score": 0.3
+        }
+      ],
+      "supported_entities": [
+        "DE_KFZ"
+      ],
+      "supported_language": "de"
+    },
+    {
+      "name": "DeFuehrerscheinRecognizer",
+      "patterns": [
+        {
+          "name": "F\u00fchrerscheinnummer (Post-2013 EU-Format, 11 Zeichen)",
+          "score": 0.35
+        }
+      ],
+      "supported_entities": [
+        "DE_FUEHRERSCHEIN"
+      ],
+      "supported_language": "de"
+    },
+    {
+      "name": "DePlzRecognizer",
+      "patterns": [
+        {
+          "name": "Postleitzahl (5 digits, very low base confidence \u2013 context required)",
+          "score": 0.05
+        }
+      ],
+      "supported_entities": [
+        "DE_PLZ"
+      ],
+      "supported_language": "de"
+    }
+  ],
+  "en": [
+    {
+      "name": "CreditCardRecognizer",
+      "patterns": [
+        {
+          "name": "All Credit Cards (weak)",
+          "score": 0.3
+        }
+      ],
+      "supported_entities": [
+        "CREDIT_CARD"
+      ],
+      "supported_language": "en"
+    },
+    {
+      "name": "UsBankRecognizer",
+      "patterns": [
+        {
+          "name": "Bank Account (weak)",
+          "score": 0.05
+        }
+      ],
+      "supported_entities": [
+        "US_BANK_NUMBER"
+      ],
+      "supported_language": "en"
+    },
+    {
+      "name": "UsLicenseRecognizer",
+      "patterns": [
+        {
+          "name": "Driver License - Alphanumeric (weak)",
+          "score": 0.3
+        },
+        {
+          "name": "Driver License - Digits (very weak)",
+          "score": 0.01
+        }
+      ],
+      "supported_entities": [
+        "US_DRIVER_LICENSE"
+      ],
+      "supported_language": "en"
+    },
+    {
+      "name": "UsItinRecognizer",
+      "patterns": [
+        {
+          "name": "Itin (medium)",
+          "score": 0.5
+        },
+        {
+          "name": "Itin (very weak)",
+          "score": 0.05
+        },
+        {
+          "name": "Itin (weak)",
+          "score": 0.3
+        }
+      ],
+      "supported_entities": [
+        "US_ITIN"
+      ],
+      "supported_language": "en"
+    },
+    {
+      "name": "UsPassportRecognizer",
+      "patterns": [
+        {
+          "name": "Passport (very weak)",
+          "score": 0.05
+        },
+        {
+          "name": "Passport Next Generation (very weak)",
+          "score": 0.1
+        }
+      ],
+      "supported_entities": [
+        "US_PASSPORT"
+      ],
+      "supported_language": "en"
+    },
+    {
+      "name": "UsSsnRecognizer",
+      "patterns": [
+        {
+          "name": "SSN1 (very weak)",
+          "score": 0.05
+        },
+        {
+          "name": "SSN2 (very weak)",
+          "score": 0.05
+        },
+        {
+          "name": "SSN3 (very weak)",
+          "score": 0.05
+        },
+        {
+          "name": "SSN4 (very weak)",
+          "score": 0.05
+        },
+        {
+          "name": "SSN5 (medium)",
+          "score": 0.5
+        }
+      ],
+      "supported_entities": [
+        "US_SSN"
+      ],
+      "supported_language": "en"
+    },
+    {
+      "name": "UsMbiRecognizer",
+      "patterns": [
+        {
+          "name": "MBI (medium)",
+          "score": 0.5
+        },
+        {
+          "name": "MBI (weak)",
+          "score": 0.3
+        }
+      ],
+      "supported_entities": [
+        "US_MBI"
+      ],
+      "supported_language": "en"
+    },
+    {
+      "name": "UsNpiRecognizer",
+      "patterns": [
+        {
+          "name": "NPI (medium)",
+          "score": 0.4
+        },
+        {
+          "name": "NPI (weak)",
+          "score": 0.1
+        }
+      ],
+      "supported_entities": [
+        "US_NPI"
+      ],
+      "supported_language": "en"
+    },
+    {
+      "name": "AbaRoutingRecognizer",
+      "patterns": [
+        {
+          "name": "ABA routing number",
+          "score": 0.3
+        },
+        {
+          "name": "ABA routing number (weak)",
+          "score": 0.05
+        }
+      ],
+      "supported_entities": [
+        "ABA_ROUTING_NUMBER"
+      ],
+      "supported_language": "en"
+    },
+    {
+      "name": "NhsRecognizer",
+      "patterns": [
+        {
+          "name": "NHS (medium)",
+          "score": 0.5
+        }
+      ],
+      "supported_entities": [
+        "UK_NHS"
+      ],
+      "supported_language": "en"
+    },
+    {
+      "name": "UkNinoRecognizer",
+      "patterns": [
+        {
+          "name": "NINO (medium)",
+          "score": 0.5
+        }
+      ],
+      "supported_entities": [
+        "UK_NINO"
+      ],
+      "supported_language": "en"
+    },
+    {
+      "name": "UkPassportRecognizer",
+      "patterns": [
+        {
+          "name": "UK Passport (weak)",
+          "score": 0.1
+        }
+      ],
+      "supported_entities": [
+        "UK_PASSPORT"
+      ],
+      "supported_language": "en"
+    },
+    {
+      "name": "UkPostcodeRecognizer",
+      "patterns": [
+        {
+          "name": "UK Postcode",
+          "score": 0.1
+        }
+      ],
+      "supported_entities": [
+        "UK_POSTCODE"
+      ],
+      "supported_language": "en"
+    },
+    {
+      "name": "UkVehicleRegistrationRecognizer",
+      "patterns": [
+        {
+          "name": "UK Vehicle Registration (current)",
+          "score": 0.3
+        },
+        {
+          "name": "UK Vehicle Registration (prefix)",
+          "score": 0.2
+        },
+        {
+          "name": "UK Vehicle Registration (suffix)",
+          "score": 0.15
+        }
+      ],
+      "supported_entities": [
+        "UK_VEHICLE_REGISTRATION"
+      ],
+      "supported_language": "en"
+    },
+    {
+      "name": "CryptoRecognizer",
+      "patterns": [
+        {
+          "name": "Crypto (Medium)",
+          "score": 0.5
+        }
+      ],
+      "supported_entities": [
+        "CRYPTO"
+      ],
+      "supported_language": "en"
+    },
+    {
+      "name": "DateRecognizer",
+      "patterns": [
+        {
+          "name": "ISO 8601 datetime",
+          "score": 0.8
+        },
+        {
+          "name": "MMM-yyyy or MMM-yy",
+          "score": 0.6
+        },
+        {
+          "name": "dd-MMM or dd-MMM",
+          "score": 0.6
+        },
+        {
+          "name": "dd-MMM-yyyy or dd-MMM-yy",
+          "score": 0.6
+        },
+        {
+          "name": "dd-mm-yyyy",
+          "score": 0.6
+        },
+        {
+          "name": "dd.mm.yyyy or dd.mm.yy",
+          "score": 0.6
+        },
+        {
+          "name": "dd/mm/yyyy or dd/mm/yy",
+          "score": 0.6
+        },
+        {
+          "name": "mm-dd-yyyy",
+          "score": 0.6
+        },
+        {
+          "name": "mm/dd/yyyy or mm/dd/yy",
+          "score": 0.6
+        },
+        {
+          "name": "mm/yy or m/yy",
+          "score": 0.1
+        },
+        {
+          "name": "mm/yyyy or m/yyyy",
+          "score": 0.2
+        },
+        {
+          "name": "yyyy-mm-dd",
+          "score": 0.6
+        },
+        {
+          "name": "yyyy/mm/dd",
+          "score": 0.6
+        }
+      ],
+      "supported_entities": [
+        "DATE_TIME"
+      ],
+      "supported_language": "en"
+    },
+    {
+      "name": "EmailRecognizer",
+      "patterns": [
+        {
+          "name": "Email (Medium)",
+          "score": 0.5
+        }
+      ],
+      "supported_entities": [
+        "EMAIL_ADDRESS"
+      ],
+      "supported_language": "en"
+    },
+    {
+      "name": "IbanRecognizer",
+      "patterns": [
+        {
+          "name": "IBAN Generic",
+          "score": 0.5
+        }
+      ],
+      "supported_entities": [
+        "IBAN_CODE"
+      ],
+      "supported_language": "en"
+    },
+    {
+      "name": "IpRecognizer",
+      "patterns": [
+        {
+          "name": "IPv4",
+          "score": 0.6
+        },
+        {
+          "name": "IPv6",
+          "score": 0.1
+        },
+        {
+          "name": "IPv6",
+          "score": 0.6
+        }
+      ],
+      "supported_entities": [
+        "IP_ADDRESS"
+      ],
+      "supported_language": "en"
+    },
+    {
+      "name": "MedicalLicenseRecognizer",
+      "patterns": [
+        {
+          "name": "USA DEA Certificate Number (weak)",
+          "score": 0.4
+        }
+      ],
+      "supported_entities": [
+        "MEDICAL_LICENSE"
+      ],
+      "supported_language": "en"
+    },
+    {
+      "name": "MacAddressRecognizer",
+      "patterns": [
+        {
+          "name": "MAC_CISCO_DOT",
+          "score": 0.6
+        },
+        {
+          "name": "MAC_COLON_OR_HYPHEN",
+          "score": 0.6
+        }
+      ],
+      "supported_entities": [
+        "MAC_ADDRESS"
+      ],
+      "supported_language": "en"
+    },
+    {
+      "name": "PhoneRecognizer",
+      "patterns": [],
+      "supported_entities": [
+        "PHONE_NUMBER"
+      ],
+      "supported_language": "en"
+    },
+    {
+      "name": "UrlRecognizer",
+      "patterns": [
+        {
+          "name": "Non schema URL",
+          "score": 0.5
+        },
+        {
+          "name": "Quoted Non-schema URL",
+          "score": 0.5
+        },
+        {
+          "name": "Quoted URL",
+          "score": 0.6
+        },
+        {
+          "name": "Standard Url",
+          "score": 0.6
+        }
+      ],
+      "supported_entities": [
+        "URL"
+      ],
+      "supported_language": "en"
+    },
+    {
+      "name": "SpacyRecognizer",
+      "patterns": [],
+      "supported_entities": [
+        "DATE_TIME",
+        "LOCATION",
+        "NRP",
+        "PERSON"
+      ],
+      "supported_language": "en"
+    }
+  ]
+}

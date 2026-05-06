@@ -40,9 +40,9 @@ Status legend: `Not Started` · `In Progress` · `Complete` · `Blocked`.
 - [x] **REQ-008** — Calibration corpus expansion (broader class) — **Complete** (chunk 2 retry; 15 new broader-class fixtures + 1 long-doc anchor exercised by `tools/calibration_report.py --raw --out`)
 - [x] **REQ-009** — New CI fixtures for `broader class` over-detection — **Complete** (chunk 2 retry; 15 `expect_clean: true` entries added to `tests/eval/fixtures/de.yaml`)
 - [x] **REQ-009b** — Held-out positive (DE LOCATION) and long-document anchor — **Complete** (chunk 2 retry; 2 fixtures added per Option A amendment — DE LOCATION + 557-token long-doc anchor; DE DATE_TIME held-out positive dropped per Amendment 2026-05-06)
-- [ ] **REQ-010** — API contract preservation — Not Started
-- [ ] **REQ-010a** — API-shape regression test (byte-identical envelope + headers) — Not Started
-- [ ] **REQ-011** — Recognizer-registry floor preservation — Not Started
+- [x] **REQ-010** — API contract preservation — **Complete** (chunk 3; OpenAPI baseline captured at `tests/contracts/openapi-baseline.json`; CI gate `tests/contracts/test_openapi_diff.py` asserts live `/openapi.json` matches. Zero src/redakt changes since main, so the captured baseline IS the main baseline — verified via `git log main..HEAD -- src/redakt/` (empty).)
+- [x] **REQ-010a** — API-shape regression test (byte-identical envelope + headers) — **Complete** (chunk 3; 5 snapshot baselines + `tests/contracts/test_api_shape.py` covering detect/anonymize/deanonymize × en/de. Tamper test verified once — see Chunk 3 subsection.)
+- [x] **REQ-011** — Recognizer-registry floor preservation — **Complete** (chunk 3; `tests/contracts/recognizers-baseline.json` + `test_recognizer_registry_floor.py`. YAML diff evidence at `reports/req-011-recognizer-diffs.md` (gitignored): both Redakt-side and fork-side diffs empty — additions-only constraint trivially satisfied.)
 - [ ] **REQ-012** — Documentation of code-switched-text limitation — Not Started
 - [x] **REQ-013** — HF model revision pinning + artifact-level integrity verification — **Complete** (chunk 1B; YAML `revision` key wired into `install_nlp_models.py`; baseline manifest captured at first build; verification mode active on subsequent builds. `from_pretrained(revision=...)` is also forwarded in install. Runtime `from_pretrained` in upstream-Presidio's `TransformersNlpEngine` does NOT yet honor the YAML revision — gap noted below; deferred to chunk 4.)
 - [ ] **REQ-014** — Cold-start measurement gate (with hardware-class binding and explicit safety margin) — Not Started
@@ -189,6 +189,70 @@ These remain to be exercised in subsequent chunks.
 **Calibration tooling:** `uv run python tools/calibration_report.py --raw --presidio-url http://localhost:5002 --out reports/calibration-007-after.md`. Note: the analyzer container does not publish port 5002 to the host (per REQ-005's docker-compose wiring — internal-only network per SEC-004). For host-side `--raw` calibration runs, the implementer used a temporary `alpine/socat` container on the `redakt_default` network forwarding host port 5002 → `presidio-analyzer:5001`. This is dev-only ergonomics; no production-path change. Future calibration runs may reuse the same socat pattern or run the tool from inside a container on the docker network.
 
 **Counter usage for chunk 2 retry:** Reads ~9/15, Nested subagents 0/4.
+
+### Chunk 3 — Contract gates
+
+**Status:** Complete.
+
+**Scope.** REQ-010 (API contract preservation), REQ-010a (byte-identical
+envelope + headers regression test), REQ-011 (recognizer registry floor
+preservation). All three are protective gates: they assert the existing
+contract surface stays put, they do not change behavior. Single Redakt
+commit; no Presidio fork changes.
+
+**Files created (Redakt repo):**
+- `tests/contracts/__init__.py` — package marker.
+- `tests/contracts/conftest.py` — `client` fixture (httpx, module-scoped) bound to `REDAKT_URL` env var (default `http://localhost:8000`).
+- `tests/contracts/openapi-baseline.json` — pretty-printed (`indent=2, sort_keys=True`) snapshot of `/openapi.json` captured against the current feature-branch container. Verified equivalent to `main` via `git log main..HEAD -- src/redakt/` returning empty.
+- `tests/contracts/test_openapi_diff.py` — 2 tests: baseline-exists guard + live-vs-baseline equality with unified-diff failure message.
+- `tests/contracts/snapshot_detect_en.json`, `snapshot_detect_de.json`, `snapshot_anonymize_en.json`, `snapshot_anonymize_de.json`, `snapshot_deanonymize.json` — captured 200 responses for the fixed inputs documented inside `test_api_shape.py`.
+- `tests/contracts/test_api_shape.py` — 5 tests (parametrized over en/de for detect+anonymize, single for deanonymize) covering: status code, `Content-Type`, no `X-Redakt-*` headers, header-set match (excluding volatile date/server/content-length), top-level JSON-key set match, per-entity `details` object key match, `mappings` `dict[str,str]` shape, deanonymize byte-identical equality (no model in the loop). Failure mode: per-endpoint precise diff naming the offending field.
+- `tests/contracts/recognizers-baseline.json` — captured via `docker exec redakt-presidio-analyzer-1 python3 -c "<introspect script>"` against `AnalyzerEngineProvider().create_engine().registry.get_recognizers(language=..., all_fields=True)`; serializes (name, supported_language, supported_entities, patterns[(name, score)]) for en (24 recognizers) and de (17 recognizers).
+- `tests/contracts/test_recognizer_registry_floor.py` — 8 tests (parametrized over en/de × {names enabled, supported_entities preserved, pattern scoring preserved, relative order preserved}). Allows additions; fails on removals/disables, on dropped or rescored patterns, and on relative-order regressions within the floor set.
+- `reports/req-011-recognizer-diffs.md` — gitignored evidence file. Both Redakt-side and Presidio-fork-side `default_recognizers.yaml` diffs are empty.
+
+**Files modified (Redakt repo):**
+- `pyproject.toml` — added `--ignore=tests/contracts` to pytest `addopts` so the live-stack contract suite is excluded from the default `uv run pytest tests/` run, mirroring the pattern used for `tests/e2e` and `tests/eval`. Documented invocation: `uv run pytest tests/contracts/`.
+
+**REQ-010 acceptance:**
+- ✅ `git log main..HEAD -- src/redakt/` returns empty: zero source changes since main, so the captured `/openapi.json` IS the main baseline.
+- ✅ Existing 41 + 17 eval fixtures pass without modification (already verified at chunk 2 retry: 58/58).
+- ✅ `tests/contracts/test_openapi_diff.py` is green and gates merge.
+
+**REQ-010a acceptance:**
+- ✅ Contract test added in this chunk; passes on the feature branch (5/5 green for en+de × detect/anonymize plus deanonymize).
+- ✅ Both REQ-010 (OpenAPI diff) and REQ-010a (envelope + headers shape) gate merge — distinct files, distinct surfaces.
+- ✅ **Tamper test verified.** Temporarily added `response.headers["X-Test-Stray"] = "tamper-test"` to `SecurityHeadersMiddleware.dispatch` (`src/redakt/main.py:34`); contract tests failed with precise diff: `"[detect[en]] response header set drifted from contract. ... extra (absent in baseline, present live): ['x-test-stray']"`. All 5 envelope-shape tests failed at the header-set check. Reverted before commit; `git diff src/redakt/main.py` is empty.
+
+**REQ-011 acceptance:**
+- ✅ `default_recognizers.yaml` diff captured (Redakt-side `main..feature/007-transformers-nlp-backend`, fork-side `main..feature/redakt-007-multi-nlp-engine`): both empty. Recorded in `reports/req-011-recognizer-diffs.md`.
+- ✅ Runtime gate `test_recognizer_registry_floor.py` introspects the live registry on every run; would catch any future regression that slipped past a YAML-diff review.
+
+**Test invocation + outcome:**
+```
+uv run pytest tests/contracts/ -v
+... 15 passed in 4.55s
+```
+Default unit/integration tree still green:
+```
+uv run pytest tests/
+... 350 passed in 2.51s
+```
+
+**Tests added by chunk 3:**
+- `test_openapi_diff.py`: 2 tests.
+- `test_api_shape.py`: 5 tests (parametrized).
+- `test_recognizer_registry_floor.py`: 8 tests (parametrized over en/de × 4 properties).
+- Total: **15 new tests**.
+
+**Out of chunk 3 scope (left for later chunks):**
+- REQ-012 (docs update for code-switched-text limitation).
+- REQ-014 (cold-start measurement gate).
+- REQ-015 (in-Redakt §4.5 model probe).
+- REQ-016 (`language: auto` E2E routing test).
+- REQ-017 (upstream-merge import smoke CI).
+
+**Counter usage for chunk 3:** Reads ~5/12, Nested subagents 0/4.
 
 ## Notes
 

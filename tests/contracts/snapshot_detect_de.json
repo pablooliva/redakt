@@ -1,0 +1,24 @@
+{
+  "details": [
+    {
+      "end": 12,
+      "entity_type": "PERSON",
+      "score": 0.9999851584434509,
+      "start": 0
+    },
+    {
+      "end": 42,
+      "entity_type": "ORGANIZATION",
+      "score": 0.399995231628418,
+      "start": 30
+    }
+  ],
+  "entities_found": [
+    "ORGANIZATION",
+    "PERSON"
+  ],
+  "entity_count": 2,
+  "has_pii": true,
+  "language_confidence": null,
+  "language_detected": "de"
+}

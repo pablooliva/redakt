@@ -523,3 +523,30 @@ After decision, autonomous flow resumes at chunk 2 with the amended spec. Estima
 **Two-repo discipline:** No Presidio-fork commit (multi.yaml unchanged). Single Redakt commit for fixtures + reports + tracker updates.
 
 **Counter usage for chunk 2 retry:** Reads ~9/15, Nested subagents 0/4.
+
+### Step 4a chunk 3 — Contract gates
+
+**Status:** Complete.
+
+**Scope:** REQ-010 (API contract preservation), REQ-010a (byte-identical envelope + headers regression test), REQ-011 (recognizer-registry floor preservation). Single Redakt commit; no Presidio fork changes.
+
+**New `tests/contracts/` suite — 15 tests across three files:**
+
+- `test_openapi_diff.py` (2 tests) — asserts live `/openapi.json` matches a committed baseline (`openapi-baseline.json`, 1097 lines, deterministic pretty-print). Failure mode: unified diff identifying the offending paths/components.
+- `test_api_shape.py` (5 tests) — parametrized over en+de for detect/anonymize plus a deanonymize singleton. Captures fixed inputs against snapshot baselines (`snapshot_*.json`) and asserts: status 200; `Content-Type: application/json`; no `X-Redakt-*` headers; header-set match (excluding volatile date/server/content-length); top-level JSON-key match; `details` per-entity object key match; `mappings` is `dict[str,str]`. Deanonymize body is checked byte-identical (deterministic substitution).
+- `test_recognizer_registry_floor.py` (8 tests) — parametrized over en/de × {names enabled, supported_entities preserved, pattern (name,score) preserved, relative order preserved}. Re-introspects the live `redakt-presidio-analyzer-1` registry via `docker exec` against `AnalyzerEngineProvider().create_engine().registry.get_recognizers(language=..., all_fields=True)`; allows additions, fails on removals/reorderings/rescorings of the floor (`recognizers-baseline.json`: 24 en + 17 de recognizers).
+
+**`pyproject.toml`** — `addopts` extended to `--ignore=tests/contracts` so the live-stack suite is excluded from the default `tests/` run, mirroring the `tests/e2e` / `tests/eval` pattern. Documented invocation: `uv run pytest tests/contracts/`.
+
+**Tamper test verified once (REQ-010a item 4 / acceptance bullet 3).** Temporarily added `response.headers["X-Test-Stray"] = "tamper-test"` to `SecurityHeadersMiddleware.dispatch` (`src/redakt/main.py:34`). Hot-reload picked it up; ran `uv run pytest tests/contracts/test_api_shape.py -v` — all 5 envelope-shape tests failed with the precise diff message: `"... response header set drifted from contract. ... extra (absent in baseline, present live): ['x-test-stray']"`. Reverted; `git diff src/redakt/main.py` is empty before commit.
+
+**REQ-011 evidence file:** `reports/req-011-recognizer-diffs.md` (gitignored). Both Redakt-side and Presidio-fork-side `default_recognizers.yaml` diffs are empty — additions-only constraint trivially satisfied. Runtime gate `test_recognizer_registry_floor.py` is the per-CI-run counterpart.
+
+**Test outcomes:**
+- `uv run pytest tests/contracts/` → 15 passed in 4.55s.
+- `uv run pytest tests/` (default tree, contracts excluded) → 350 passed in 2.51s.
+- `uv run pytest tests/eval/` (already-green from chunk 2 retry, re-verified) → 58 passed in 4.56s.
+
+**Two-repo discipline:** Single Redakt commit. No Presidio-fork commit; `default_recognizers.yaml` is unchanged on both sides.
+
+**Counter usage for chunk 3:** Reads ~5/12, Nested subagents 0/4.

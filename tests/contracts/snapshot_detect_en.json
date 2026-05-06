@@ -1,0 +1,17 @@
+{
+  "details": [
+    {
+      "end": 10,
+      "entity_type": "PERSON",
+      "score": 0.85,
+      "start": 0
+    }
+  ],
+  "entities_found": [
+    "PERSON"
+  ],
+  "entity_count": 1,
+  "has_pii": true,
+  "language_confidence": null,
+  "language_detected": "en"
+}

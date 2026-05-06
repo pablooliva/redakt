@@ -1,0 +1,9 @@
+{
+  "anonymized_text": "<PERSON_1> arbeitet bei der <ORGANIZATION_1>",
+  "language_confidence": null,
+  "language_detected": "de",
+  "mappings": {
+    "<ORGANIZATION_1>": "Beispiel AG.",
+    "<PERSON_1>": "Anna Schmidt"
+  }
+}
