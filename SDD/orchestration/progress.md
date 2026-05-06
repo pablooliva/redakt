@@ -453,3 +453,29 @@ Spawned 2026-05-06 12:39:19. Counter file: `SDD/orchestration/counters/4a-1B-com
 **Do NOT prune BuildKit cache before resuming** — it holds the ~3 GB transformer download + spaCy models. Cache reset = redownload from HF Hub.
 
 Resuming via any path lands the orchestrator at chunk 2 (REQ-006/007/008 calibration). Calibration's four-bar stopping condition is mechanically defined (negative + held-out positive + score-distribution annotation + reproducibility ±0.05) — autonomously executable once the stack runs.
+
+## Awaiting Spec Amendment Decision
+
+**Trigger:** Chunk 2 subagent ran an analytical pre-flight (no fixtures written, no thresholds tuned) and surfaced a structural impossibility — REQ-006's four-bar stopping condition cannot hold for `DATE_TIME` under REQ-007's "EN row unchanged" constraint. Empty intersection between `T > 0.85` (Bar 1, EN benign fixtures stay clean) and `T ≤ 0.8` (Bar 2, DE held-out positive admits ISO 8601 dates).
+
+**Frame-shift surfaced by advisor pre-check:**
+- The original CLARIFICATION goal — German common-noun-as-PERSON over-detection — is **already fixed by xlm-roberta alone**. All 15 broader-class nouns produce zero raw entities at any threshold.
+- The DATE_TIME conflict is a constraint introduced by REQ-009b (held-out positive bar, added at Step 3e fix), NOT by Pablo's CLARIFICATION success criteria.
+- xlm-roberta is CoNLL-03 (PER/LOC/ORG/MISC) — DATE_TIME on DE is regex-only by model design.
+- Grep verification: no existing EN fixture expects DATE_TIME (only a historical comment in `benign.yaml`). Both options below are mechanically available.
+
+**Compaction file:** `SDD/orchestration/compacted/implementation-compacted-2026-05-06_13-45-37.md` — full diagnosis with score numbers, probe outputs, and a ready-to-use 557-token German long-doc anchor.
+
+**Resume options (Pablo's call — design-concept drift, can't be resolved autonomously):**
+
+1. **Option A (most CLARIFICATION-faithful, structurally cleanest):** Amend REQ-009b to **drop the DE DATE_TIME held-out positive**. Keep the DE LOCATION held-out positive. Document DE DATE_TIME as a model-design limitation (xlm-roberta lacks DATE label; regex ceiling 0.6/0.8 is the only DATE source for DE). Update REQ-006 Bar 2 to be entity-conditional ("held-out positive applies to entities with model coverage"). **No EN-side change. No ADR amendment.** The original feature goal (German common-noun bug) is met without further tuning. `entity_score_thresholds` stays at current values; only fixtures change.
+
+2. **Option B (subagent's recommendation):** Amend REQ-007 to permit extending EN row's `low_score_entity_names` from `[ORG, ORGANIZATION]` to `[ORG, ORGANIZATION, DATE, TIME]`. EN spaCy's DATE/TIME 0.85 × 0.4 = 0.34 → filtered by Redakt's 0.35 default. Drop `entity_score_thresholds["DATE_TIME"]` from 0.95 to 0.55. Then DE held-out positive at 0.6/0.8 passes. **Adds ADR 0001 footnote** clarifying "bit-for-bit preserved" refers to engine choice + entity surface, not score-by-score equality. Detection-set non-regression on en fixtures verified by grep — no en fixture asserts DATE_TIME presence.
+
+**Which to pick?**
+- Option A is simpler, smaller scope, more aligned with CLARIFICATION Q1 #2's "spaCy en stays as-is."
+- Option B preserves the held-out positive bar's intent and is more future-flexible (later de DATE_TIME work has more headroom), at the cost of a minor EN-side semantic change.
+
+**Recommend Option A** unless Pablo wants future flexibility for de DATE_TIME — the held-out positive bar was added for safety against threshold drops, but if there's no DATE coverage in the model, the safety net was protecting an empty path.
+
+After decision, autonomous flow resumes at chunk 2 with the amended spec. Estimated wall-clock from amendment to chunk 2 commit: 30–60 min for calibration iterations + before/after report capture.
