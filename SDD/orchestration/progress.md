@@ -479,3 +479,16 @@ Resuming via any path lands the orchestrator at chunk 2 (REQ-006/007/008 calibra
 **Recommend Option A** unless Pablo wants future flexibility for de DATE_TIME — the held-out positive bar was added for safety against threshold drops, but if there's no DATE coverage in the model, the safety net was protecting an empty path.
 
 After decision, autonomous flow resumes at chunk 2 with the amended spec. Estimated wall-clock from amendment to chunk 2 commit: 30–60 min for calibration iterations + before/after report capture.
+
+### Step 3e — Amendment 2026-05-06 (Option A)
+
+**Halt resolved.** The `## Awaiting Spec Amendment Decision` block above is now closed. Pablo selected **Option A** (most CLARIFICATION-faithful, structurally cleanest): drop the DE DATE_TIME held-out positive from REQ-009b; document DE DATE_TIME as a model-design limitation (xlm-roberta CoNLL-03 has no DATE label; regex-only ceiling 0.6/0.8 in `DateRecognizer`); rewrite REQ-006 Bar 2 to be entity-conditional. **No EN-row change. No ADR amendment.** `entity_score_thresholds` stays at current values; only fixtures change downstream.
+
+**Spec amendment artifacts (this subagent):**
+- `SDD/requirements/SPEC-007-transformers-nlp-backend.md` — REQ-009b (DE DATE_TIME line item dropped; long-doc anchor now uses the explicit 557-token German paragraph from the compaction file; "Amendment 2026-05-06" sub-block added documenting the drop, the rationale, and the prior wording for audit trail), REQ-006 Bar 2 (rewritten entity-conditional), validation-strategy line (59→58), Implementation Notes step 6 + step 7 (entity-conditional Bar 2; 59→58 PASS count; harness "must contain" used by DE LOCATION only), RISK-004 mitigation language (removed DE DATE_TIME from held-out positive description), new top-level `## Amendments` section above `## Implementation Notes` summarizing the change with citation to the compaction file.
+- Acceptance arithmetic: `41 existing + 15 broader-class clean + 2 held-out positive/long-doc = 58 fixtures`.
+- Audit trail preserved per the safety-net rule: the original DE DATE_TIME wording (`"Der Termin ist morgen um 14 Uhr."`, `expected_entities: [DATE_TIME]`) is retained inside the REQ-009b "Amendment 2026-05-06" sub-block and explicitly marked non-normative.
+
+**Commit.** Amendment commit will be created by the orchestrator (this subagent does not commit).
+
+**Next sub-step.** Chunk 2 retry with the unblocked spec — calibration iterations (REQ-006 / REQ-007 / REQ-008), 17 new fixtures (15 `expect_clean: true` + 2 held-out positive/long-doc), before/after `tools/calibration_report.py --raw --out` reports, four-bar stopping condition with the entity-conditional Bar 2. The chunk-2 subagent does NOT need to revisit `entity_score_thresholds["DATE_TIME"]` — the DATE_TIME conflict is removed by amendment, current value (0.95) stays unless the chunk-2 calibration surfaces independent justification to change it.
