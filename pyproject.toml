@@ -40,12 +40,13 @@ packages = ["src/redakt"]
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]
-# E2E, eval, and contracts tests are excluded by default — they need a live
-# Redakt + Presidio stack on localhost:8000 / :5001 / :5002.
-# Run E2E:        uv run pytest tests/e2e/
-# Run eval suite: uv run pytest tests/eval/
-# Run contracts:  uv run pytest tests/contracts/
-addopts = "--ignore=tests/e2e --ignore=tests/eval --ignore=tests/contracts"
+# E2E, eval, contracts, and integration tests are excluded by default — they
+# need a live Redakt + Presidio stack on localhost:8000 / :5001 / :5002.
+# Run E2E:         uv run pytest tests/e2e/
+# Run eval suite:  uv run pytest tests/eval/
+# Run contracts:   uv run pytest tests/contracts/
+# Run integration: uv run pytest tests/integration/
+addopts = "--ignore=tests/e2e --ignore=tests/eval --ignore=tests/contracts --ignore=tests/integration"
 
 [tool.ruff]
 target-version = "py312"

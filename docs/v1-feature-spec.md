@@ -169,6 +169,14 @@ Deanonymization happens client-side: the browser replaces `<PERSON_1>` → `John
 - How to handle mixed-language content? (e.g., German text with English names)
 - Should detection run on the full text or a sample?
 
+**Code-switched (mixed-language) text — known limitation.**
+
+The analyzer runs `MultiNlpEngine` with two sub-engines: `en` (spaCy `en_core_web_lg`) and `de` (`xlm-roberta-large-finetuned-conll03-german` for NER, `de_core_news_sm` for tokenization). For each request, exactly one sub-engine handles the entire text — they do not run jointly.
+
+When `language: auto`, lingua-py picks one language from the request body and the matching engine runs. For a paragraph that mixes German and English (e.g., a German email body that quotes an English LLM response), lingua-py picks whichever language scores higher on the snippet as a whole; PII in the non-selected language may be missed. This is an accepted tradeoff per CLARIFICATION-007 Q6 — the previous uniform-spaCy multilingual setup over-flagged both languages' entities, while the new asymmetric routing under-flags the non-selected one.
+
+For mixed-language text, set the `language` parameter explicitly to the language that carries the dominant PII content. Do not rely on `auto`. SPEC-007 EDGE-001 documents the limitation; SPEC-007 EDGE-004 covers the lingua-py mis-detection case (override via explicit `language`).
+
 ---
 
 ### Feature 5: Allow Lists

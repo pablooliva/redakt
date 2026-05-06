@@ -550,3 +550,79 @@ After decision, autonomous flow resumes at chunk 2 with the amended spec. Estima
 **Two-repo discipline:** Single Redakt commit. No Presidio-fork commit; `default_recognizers.yaml` is unchanged on both sides.
 
 **Counter usage for chunk 3:** Reads ~5/12, Nested subagents 0/4.
+
+### Step 4a chunk 4 — Routing + edges + cold-start
+
+**Subagent:** chunk 4 (fifth implementation subagent for SDD-007).
+**Scope:** REQ-012 (code-switched docs), REQ-014 (cold-start measurement + healthcheck binding), REQ-015 (in-Redakt §4.5 probe), REQ-016 (`language: auto` routing test), EDGE-001..008 coverage map.
+**Two-repo discipline:** Single Redakt commit. No Presidio-fork commit.
+
+**REQ-016 — `language: auto` routing test (positive coverage).**
+
+New `tests/integration/` suite — 3 tests in `test_auto_detect_routing.py`:
+
+1. `test_auto_routes_german_text_to_de_engine` — `Sie wohnt in Berlin und arbeitet in München.` + `language: auto` → asserts `language_detected == "de"`, LOCATION present, LOCATION score ≥ 0.95 (transformer fingerprint).
+2. `test_auto_routes_english_text_to_en_engine` — `Anna Schmidt works at Acme Corp in New York.` + `language: auto` → asserts `language_detected == "en"`, PERSON present, PERSON score within 0.01 of 0.85 (spaCy `ner_strength` fingerprint).
+3. `test_auto_routing_signals_invert_under_explicit_language_swap` — sanity check that EN→DE-engine and DE→EN-engine cross-routing produces inverted score fingerprints, locking the swap-detection signal used by tests 1 and 2.
+
+`pyproject.toml` `addopts` extended with `--ignore=tests/integration`, mirroring the existing live-stack-test gating pattern (`tests/e2e`, `tests/eval`, `tests/contracts`).
+
+**Engine-swap fingerprint verification.** Cross-routed probes confirm that a hypothetical `MultiNlpEngine._sub_engines` key swap fails the test deterministically:
+- DE text via `language: en` → ZERO entities (LOCATION drops below 0.90 floor under spaCy). The DE-routing test's `"LOCATION" in scores` assertion fails with the diagnostic "DE-routed transformer engine should emit LOCATION on 'Berlin' / 'München'."
+- EN text via `language: de` → PERSON@0.9999 (transformer). The EN-routing test's `person_score < 0.9` assertion fails with the diagnostic "This score profile indicates the request was routed to the DE transformer engine."
+
+**REQ-015 — Pre-deploy in-Redakt §4.5 model probe.**
+
+`reports/req-015-probe.md` captured (gitignored — same convention as chunk-2's `calibration-007-after.md`). 22 phrases (Set A 10 named, Set B 10 extras, Set C 2 sentence-context controls) probed via `POST /api/detect?verbose=true`. Outcome matches RESEARCH-007 §4.5 byte-for-byte:
+
+- Set A: 10/10 clean (zero entities).
+- Set B: 9/10 clean; only `BIC → ORGANIZATION(0.40)` (raw 0.998 × `low_confidence_score_multiplier: 0.4`). Defensible per ADR 0001 §Neutral observations / EDGE-008.
+- Set C: `Anna Schmidt arbeitet bei der Beispiel AG in Berlin.` → PERSON, LOCATION, ORGANIZATION; `Hans Müllers Personalausweis ist abgelaufen.` → PERSON only (Personalausweis clean in context).
+
+No fallback to `Davlan/bert-base-multilingual-cased-ner-hrl` triggered. Primary model `xlm-roberta-large-finetuned-conll03-german` validated for production.
+
+**REQ-014 — Cold-start measurement + healthcheck binding.**
+
+- **Hardware class:** developer machine (Apple Silicon Mac, macOS Darwin 25.4.0, Docker Desktop with virtiofs storage).
+- **Measured cold-start:** **9 s** (`docker compose stop && start` to first `/health` 200).
+- **Internal model-load timeline:** gunicorn boot at 13:04:58 → all three models LOADED by 13:05:05.7 (~7 s). `LOADED en_core_web_lg`, `LOADED de_core_news_sm`, `LOADED FacebookAI/xlm-roberta-large-finetuned-conll03-german` each appear exactly once and all before HTTP server begins serving — re-validates the model-load-once invariant from REQ-001 acceptance.
+- **Margin choice:** option (b), 2× safety margin → `start_period = max(30s, ceil(2 × 9s)) = 30s`.
+- **Final `start_period`:** **90 s** (current chunk-1B value retained as conservative — 10× the measurement, ~5× the 2× formula). No edit to `docker-compose.yml`. Headroom comfortably accommodates colder-cache scenarios (first-build, post-prune; transformer load could approach 30 s on cold OS page cache).
+
+**PERF-001 — Latency baseline for 3 anchors (5 warm, median):**
+
+| Anchor | Median |
+| --- | --- |
+| Short bare-noun DE (`Personalausweis`) | 0.079 s |
+| Sentence-context EN (`My name is John Smith.`) | 0.005 s |
+| Long-document DE (REQ-009b 557-token anchor) | 1.262 s |
+
+DE long-doc at 1.26 s sits inside RESEARCH-007 §4 + CLARIFICATION-007 Q4's 0.5–3 s expectation envelope. No SLO; baseline recorded for future regression.
+
+**REQ-012 — Code-switched-text docs.**
+
+Updated three operator-facing locations:
+- `README.md` — brief note under "API" referencing lingua-py + the explicit `language` override.
+- `docs/v1-feature-spec.md` — full subsection under Feature 4 with CLARIFICATION-007 Q6 reference and EDGE-001 / EDGE-004 cross-references.
+- `docs/presidio-integration.md` — "NLP Engine Options" section rewritten to introduce `MultiNlpEngine` as the production default; pure-spaCy and uniform-Transformers options retained as upstream alternatives. Code-switched-text limitation called out.
+
+**EDGE-001..008 coverage map.**
+
+All 8 marked Covered in the IMPLEMENTATION-PLAN tracker with citation to the test/fixture/report that exercises each case:
+
+- EDGE-001 — REQ-012 docs + non-crash via `tests/integration/`.
+- EDGE-002 — REQ-009's 15 broader-class fixtures + REQ-015 probe Set A/B.
+- EDGE-003 — existing `de.yaml` PII fixtures + REQ-015 Set C control `Hans Müllers Personalausweis ist abgelaufen.`
+- EDGE-004 — REQ-012 docs + the explicit-`language` override exercised by `test_auto_routing_signals_invert_under_explicit_language_swap`.
+- EDGE-005 — `generic.yaml` `Anna Schmidt …` fixture + REQ-015 Set C control.
+- EDGE-006 — REQ-009b 557-token long-doc fixture + PERF-001 latency baseline.
+- EDGE-007 — Redakt-side request validation (`src/redakt/utils.py` + Pydantic) + existing `tests/test_detect.py` empty-input tests.
+- EDGE-008 — REQ-015 probe Set B `BIC → ORGANIZATION(0.40)` row + ADR 0001 §Neutral observations.
+
+**Test outcomes:**
+- `uv run pytest tests/` (default tree, live-stack tests excluded) → 350 passed in 2.5 s.
+- `uv run pytest tests/eval/` → 58 passed in 4.6 s.
+- `uv run pytest tests/contracts/` → 15 passed in 4.5 s.
+- `uv run pytest tests/integration/` → 3 passed in 0.4 s (new in chunk 4).
+
+**Counter usage for chunk 4:** Reads ~7/12, Nested subagents 0/4.

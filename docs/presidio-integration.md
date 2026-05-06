@@ -194,22 +194,33 @@ docker compose -f presidio/docker-compose-transformers.yml up --build
 
 ## NLP Engine Options
 
-### docker-compose-text.yml (spaCy)
+Redakt's production stack uses a custom `MultiNlpEngine` (asymmetric routing — see SDD/adr/0001) that wires the English path to spaCy and the German path to a transformer model from a single analyzer container. The pure-spaCy and pure-Transformers options below remain available upstream but are not what Redakt ships.
+
+### Production: `MultiNlpEngine` (Redakt default)
+
+- Config: `presidio/presidio-analyzer/presidio_analyzer/conf/multi.yaml`
+- `en` sub-engine: spaCy `en_core_web_lg` (NER + tokenization)
+- `de` sub-engine: `xlm-roberta-large-finetuned-conll03-german` (transformer NER) with `de_core_news_sm` for tokenization/lemmatization
+- Each request is dispatched to one sub-engine based on its `language` value (or the lingua-py auto-detect result when `language: auto`). The two sub-engines do not run jointly on a request.
+- Entity coverage: PERSON, LOCATION, ORGANIZATION on both engines; the 13 German-specific regex country recognizers (tax ID, passport, KFZ plates, etc.) remain active on the `de` path.
+- Tradeoff: cold start ~10 s on developer-class hardware; per-request latency on `de` is transformer-bound (~0.5–3 s short prose, ~1.3 s on the 557-token long-document anchor — see PERF-001 baseline in `SDD/implementation/IMPLEMENTATION-PLAN-007-...md` chunk 4).
+
+**Code-switched-text limitation.** A request that mixes German and English (e.g., German prose with English quotes) is routed to whichever language wins lingua-py's vote; PII in the non-selected language may be missed. To force the language, set `language: en` or `language: de` explicitly. See SPEC-007 EDGE-001.
+
+### Upstream alternative: docker-compose-text.yml (pure spaCy)
 
 - NLP engine: spaCy (`en_core_web_lg`)
 - NER: spaCy's built-in named entity recognition
 - Entity coverage: standard (PERSON, LOCATION, ORG, DATE_TIME, NRP)
 - Faster to build, smaller image
 
-### docker-compose-transformers.yml (Transformers)
+### Upstream alternative: docker-compose-transformers.yml (uniform Transformers)
 
 - NLP engine: Transformers + spaCy for tokenization only (`en_core_web_sm`)
 - NER model: `StanfordAIMI/stanford-deidentifier-base` (BERT-based)
 - Entity coverage: richer — also maps AGE, ID, PATIENT, STAFF, HOSPITAL, FACILITY, VENDOR, HCW
 - Trained specifically for deidentification — more accurate at catching names and contextual PII
-- Tradeoff: larger Docker image, slower inference without GPU
-
-**Recommendation for Redakt:** The transformers variant is the better fit for GDPR compliance. Catching more names is worth the overhead. Use the text variant for faster iteration during development.
+- Tradeoff: larger Docker image, slower inference without GPU; both EN and DE go through the same model
 
 ## Implications for Redakt
 

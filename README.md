@@ -63,6 +63,8 @@ Open [http://localhost:8000](http://localhost:8000) for the web UI.
 
 All endpoints accept `"language": "auto"` (default) or an explicit language code. All endpoints respect allow lists and are audit-logged.
 
+> **Code-switched (mixed-language) text.** Auto-detection uses [lingua-py](https://github.com/pemistahl/lingua-py); whichever of `en` / `de` wins the vote drives the NLP engine for the entire request. For text that mixes both languages, set `language` explicitly to the language whose PII you most need detected. PII in the non-selected language may be missed. See `docs/presidio-integration.md` and SPEC-007 EDGE-001 for details.
+
 | Method | Path | Description |
 |--------|------|-------------|
 | `POST` | `/api/detect` | PII detection — returns boolean + entity summary |
