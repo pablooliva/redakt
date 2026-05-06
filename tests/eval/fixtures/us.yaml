@@ -1,8 +1,9 @@
 # US-specific country entities. All requests use language=en.
 
-- text: "My SSN is 123-45-6789."
+- text: "My SSN is 536-22-7777."
   language: en
   expect: [US_SSN]
+  notes: "Avoid 123-45-6789 / 078-05-1120 / 987-65-4xxx etc — Presidio invalidates known sample SSNs."
 
 - text: "Driver license D1234567 issued in California."
   language: en

@@ -1,8 +1,9 @@
 # Germany-specific country entities. All requests use language=de.
 
-- text: "Meine Steuer-ID lautet 12 345 678 901."
+- text: "Meine Steuer-ID lautet 12345678903."
   language: de
   expect: [DE_TAX_ID]
+  notes: "Pattern requires 11 contiguous digits and a valid ISO 7064 Mod 11,10 checksum. 12345678903 is the docstring example."
 
 - text: "USt-IdNr.: DE123456789."
   language: de
@@ -21,14 +22,16 @@
   language: de
   expect: [DE_KFZ]
 
-- text: "Krankenversicherungsnummer A123456789."
+- text: "Krankenversicherungsnummer A123456787."
   language: de
   expect: [DE_HEALTH_INSURANCE]
+  notes: "KVNR has a Mod-10 checksum (GKV spec). A123456787 is the docstring example."
 
 - text: "Reisepassnummer C01X00T47."
   language: de
   expect: [DE_PASSPORT]
 
-- text: "Führerschein Nummer B072RRE2I55."
+- text: "Führerschein Nummer MU12345678B."
   language: de
   expect: [DE_FUEHRERSCHEIN]
+  notes: "Pattern is [A-Z]{2}\\d{8}[A-Z0-9] — 2 letters + 8 digits + 1 alphanum."
