@@ -680,3 +680,51 @@ Created `presidio/presidio-analyzer/scripts/upstream-merge-check.sh`. Runs: (1) 
 **Tracker status:** `Complete (ready for code-review at Step 4b)`. All 17 functional REQs + 8 EDGE + 6 FAIL + 3 PERF + 4 SEC + 2 PRIV + 3 REL = 43 items marked Complete with citation.
 
 **Counter usage for chunk 5:** Reads ~10/15, Nested subagents 0/4.
+
+### Step 4b — Code review
+
+**Status:** **APPROVED**. Severity counts: HIGH 0 / MEDIUM 1 / LOW 3.
+
+**Deliverable:** `SDD/reviews/REVIEW-007-transformers-nlp-backend-20260506.md`.
+
+**Module review log summary:**
+- MODULE-001 `MultiNlpEngine` (HIGH per Step 3e escalation): full internals review of all ~342 LOC of `multi_nlp_engine.py` plus all 17 unit tests in `test_multi_nlp_engine.py`. No internals issues. The HIGH-risk silent-wrong-engine-routing failure mode is structurally mitigated by REQ-016's score-fingerprint integration test.
+- MODULE-002 (multi.yaml + digest manifest): boundary review. Schema fields match REQ-003 + REQ-013.
+- MODULE-003 (install dispatcher): default + spot-check internals. Build-time `revision` forwarding correct; manifest read/verify/write correct.
+- MODULE-004, MODULE-008: boundary review (LOW risk per spec).
+- MODULE-005, MODULE-006, MODULE-007: default review (MEDIUM risk per spec). All clean.
+
+**Spec <-> test mapping:** every REQ-XXX, EDGE-XXX, FAIL-XXX has a test or documented justification. 450 tests + 1 smoke; pass rate 100%.
+
+**Three pre-flagged deviations:**
+1. Runtime `from_pretrained(revision=...)` gap -> **F-1 MEDIUM**, recommend follow-up Presidio fork patch; not exploitable in current baked-image deployment shape; defer with operator sign-off at Step 4c.
+2. `start_period: 90s` retained vs. REQ-014's 30s formula -> **F-2 LOW**, documented; deliberate over-budget envelope; >= formula floor of 30s.
+3. PERF-003 image size 36.8 GB uncompressed -> no finding; spec explicitly sets no cap; documented in tracker.
+
+**Cross-cutting checks:**
+- Glossary: 8-site spot-check, all canonical terms (`MultiNlpEngine`, `expect_clean fixture`, `asymmetric routing`, `language auto-detect path`, `four-bar stopping condition`).
+- Two-repo discipline: Presidio fork commits (`1070180`, `d604514`, `23049af`) + Redakt commits (`0c08ed2`..`1d1c337`) both authored by Pablo; no Claude attribution in SDD-007 commits; `presidio` gitlink correctly **not** committed.
+- Test integrity verified: all 450 tests run green per chunk-5 final sweep.
+
+**Decision:** **APPROVED**. Ready for Step 4c (which decides F-1 follow-up disposition with operator).
+
+**Counter usage for Step 4b:** Reads ~12/15, Nested subagents 0/4.
+
+### Step 4c — Code-review fix landings
+
+**Status:** Complete. All 4 findings (1 MEDIUM + 3 LOW) addressed in autonomous mode.
+
+- **F-1 MEDIUM (runtime `from_pretrained(revision=...)` gap):** patched in the Presidio fork (commit `258ded3` on `feature/redakt-007-multi-nlp-engine`). `MultiNlpEngine._build_sub_engine` forwards `revision` into the sub-engine's `models[]` row; `TransformersNlpEngine.load()` injects it into `hf_token_pipe`'s `pipe_config["revision"]` (wrapped in `# === redakt: ... ===` markers). 2 new unit tests (positive + backward-compat negative). ~5 LoC of production code; well under bail threshold.
+- **F-2, F-3, F-4 LOW:** documentation-only acknowledgments per the review's own action column. Existing healthcheck comment block in `docker-compose.yml`, build-time + runtime row validators, and the parametrized FAIL-002 test already encode the contracts the findings flagged.
+
+**Findings Addressed section** appended to `SDD/reviews/REVIEW-007-transformers-nlp-backend-20260506.md` with resolution / files / acceptance per finding.
+
+**Tracker updates:** REQ-013 row updated to reflect runtime fix; deviation 1 marked RESOLVED; chunk 4c subsection added; test counts bumped (presidio fork: 17 -> 19 in `test_multi_nlp_engine.py`; total 450 -> 452).
+
+**Test sweep (all green):**
+- `tests/` 350 PASS · `tests/eval/` 58 PASS · `tests/contracts/` 15 PASS · `tests/integration/` 3 PASS.
+- Presidio fork: `test_multi_nlp_engine.py` + `test_install_nlp_models_multi.py` 26 PASS (was 24; +2 for F-1).
+
+**Two-repo discipline:** one Presidio commit (`258ded3`, F-1 patch) + one Redakt commit (this tracker + review-document update). Both authored by Pablo Oliva; no Claude attribution.
+
+**Counter usage for Step 4c:** Reads ~10/12, Nested subagents 0/4.

@@ -8,7 +8,7 @@
 - **ADR:** [SDD/adr/0001-presidio-per-language-nlp-engine.md](../adr/0001-presidio-per-language-nlp-engine.md)
 - **Started:** 2026-05-06
 - **Author:** Claude
-- **Status:** Complete (ready for code-review at Step 4b)
+- **Status:** Complete (code-review APPROVED at Step 4b; F-1..F-4 addressed at Step 4c)
 - **Delivery mode:** whole-feature
 
 ## Overview
@@ -44,7 +44,7 @@ Status legend: `Not Started` · `In Progress` · `Complete` · `Blocked`.
 - [x] **REQ-010a** — API-shape regression test (byte-identical envelope + headers) — **Complete** (chunk 3; 5 snapshot baselines + `tests/contracts/test_api_shape.py` covering detect/anonymize/deanonymize × en/de. Tamper test verified once — see Chunk 3 subsection.)
 - [x] **REQ-011** — Recognizer-registry floor preservation — **Complete** (chunk 3; `tests/contracts/recognizers-baseline.json` + `test_recognizer_registry_floor.py`. YAML diff evidence at `reports/req-011-recognizer-diffs.md` (gitignored): both Redakt-side and fork-side diffs empty — additions-only constraint trivially satisfied.)
 - [x] **REQ-012** — Documentation of code-switched-text limitation — **Complete** (chunk 4; README, `docs/v1-feature-spec.md`, `docs/presidio-integration.md` updated)
-- [x] **REQ-013** — HF model revision pinning + artifact-level integrity verification — **Complete** (chunk 1B; YAML `revision` key wired into `install_nlp_models.py`; baseline manifest captured at first build; verification mode active on subsequent builds. `from_pretrained(revision=...)` is also forwarded in install. Runtime `from_pretrained` in upstream-Presidio's `TransformersNlpEngine` does NOT yet honor the YAML revision — gap noted below; deferred to chunk 4.)
+- [x] **REQ-013** — HF model revision pinning + artifact-level integrity verification — **Complete** (chunk 1B + 4c; YAML `revision` key wired into `install_nlp_models.py`; baseline manifest captured at first build; verification mode active on subsequent builds. `from_pretrained(revision=...)` is forwarded at install. Runtime `from_pretrained` gap closed at chunk 4c per code-review F-1: `MultiNlpEngine._build_sub_engine` forwards the per-row `revision` into the sub-engine's `models[]`, and `TransformersNlpEngine.load()` injects it into `hf_token_pipe`'s `pipe_config["revision"]`, which `transformers.pipeline(...)` then applies to both tokenizer and model `from_pretrained` calls. New unit tests `test_runtime_revision_pin_forwarded_to_from_pretrained` and `test_runtime_revision_absent_when_row_omits_revision` lock the contract.)
 - [x] **REQ-014** — Cold-start measurement gate (with hardware-class binding and explicit safety margin) — **Complete** (chunk 4; measured 9 s on Apple Silicon developer machine, option (b) 2× margin → 18 s; current `start_period: 90s` retained as conservative — 10× the measurement, ~5× the margin)
 - [x] **REQ-015** — Pre-deploy in-Redakt model probe — **Complete** (chunk 4; transcript at `reports/req-015-probe.md` matches RESEARCH-007 §4.5 expectation byte-for-byte: 10/10 Set A clean, 9/10 Set B clean (`BIC` flags ORG as expected per EDGE-008), Set C controls preserve PER/ORG/LOC. No fallback to `Davlan/bert-base-multilingual-cased-ner-hrl` required.)
 - [x] **REQ-016** — End-to-end `language: auto` routing test (positive coverage) — **Complete** (chunk 4; `tests/integration/test_auto_detect_routing.py` — 3 tests, all passing. Engine-swap detection verified via cross-routed probes — see Chunk 4 subsection.)
@@ -392,6 +392,39 @@ All green. No regressions across any chunk.
 
 **Counter usage for chunk 5:** Reads ~10/15, Nested subagents 0/4.
 
+### Chunk 4c — Code-review fix landings (post Step 4b APPROVED)
+
+**Status:** Complete.
+
+Code-review at Step 4b returned APPROVED with 0 HIGH, 1 MEDIUM, 3 LOW findings. All four findings addressed at Step 4c:
+
+- **F-1 MEDIUM (runtime `from_pretrained(revision=...)` gap):** Patched in the Presidio fork. `MultiNlpEngine._build_sub_engine` now forwards `revision` from the YAML row into the per-engine `models[]` row. `TransformersNlpEngine.load()` now reads `model.get("revision")` and injects it into `pipe_config["revision"]` (wrapped in `# === redakt: ... ===` markers per the upstream-merge convention from Notes). Two new unit tests assert the contract: positive (revision present → reaches `pipe_config`) and negative (revision absent → key not injected, preserves the upstream `hf_token_pipe` default of `"main"` for direct callers). Closes deviation 1.
+- **F-2 LOW (`start_period: 90s` vs. 30s formula):** Already documented in `docker-compose.yml` lines 33-42 (healthcheck comment block) and tracker deviation 2. Acknowledged; no code change required.
+- **F-3 LOW (`multi.yaml` per-row `engine`/`revision` keys not in `ConfigurationValidator` schema branch):** Acknowledged. The "or annotated to skip detailed validation for `multi`" wording in REQ-002 is satisfied by Presidio's open-schema validator passing unknown row keys silently; build-time validation at `install_nlp_models._validate_multi_row` and runtime validation at `MultiNlpEngine._validate_row` cover the surface. Adding a dedicated schema branch would be ceremony with no marginal coverage. No code change.
+- **F-4 LOW (`MultiNlpEngine.load()` increments `_load_call_count` before sub-engine iteration):** Acknowledged as the explicit one-shot contract, not a defect. `tests/test_multi_nlp_engine.py::test_load_propagates_sub_engine_failure_and_is_loaded_returns_false` lines 416-422 already locks the contract; recovery path is operator restart per REL-002. No code change.
+
+**Test sweep at chunk-4c close-out (all green):**
+
+```bash
+uv run pytest tests/                 # 350 PASS (unchanged)
+uv run pytest tests/eval/            # 58 PASS  (unchanged)
+uv run pytest tests/contracts/       # 15 PASS  (unchanged)
+uv run pytest tests/integration/     # 3 PASS   (unchanged)
+cd presidio/presidio-analyzer && uv run pytest \
+    tests/test_multi_nlp_engine.py \
+    tests/test_install_nlp_models_multi.py
+                                     # 26 PASS  (was 24; +2 for F-1)
+```
+
+**Files changed at chunk 4c:**
+
+- Presidio fork: `presidio_analyzer/nlp_engine/multi_nlp_engine.py` (~7 LoC), `presidio_analyzer/nlp_engine/transformers_nlp_engine.py` (~12 LoC including comment block + redakt markers), `tests/test_multi_nlp_engine.py` (~115 LoC: 2 new tests + a small helper).
+- Redakt: `SDD/reviews/REVIEW-007-transformers-nlp-backend-20260506.md` (Findings Addressed section appended), `SDD/implementation/IMPLEMENTATION-PLAN-007-transformers-nlp-backend-2026-05-06.md` (this update).
+
+**LoC diff for the production fix:** ~5 LoC of production code in two files, well under the 30-LoC bail-out threshold from the chunk-4c prompt.
+
+**Commits:** Presidio fork takes the F-1 patch in commit `258ded3` (`SDD-007 chunk 4c: forward per-row revision into TransformersNlpEngine.load()`). Redakt repo takes the tracker + review-document update in one commit (see commit timeline below).
+
 ## Final implementation summary
 
 **Status:** Complete. All 17 functional REQs + 8 EDGE cases + 6 FAIL scenarios + 3 PERF + 4 SEC + 2 PRIV + 3 REL items are marked Complete in this tracker with citations. Ready for handoff to Step 4b code review.
@@ -422,29 +455,30 @@ All green. No regressions across any chunk.
 | Redakt eval fixtures (`tests/eval/`) | 58 | 41 existing + 15 broader-class clean + 2 REQ-009b held-out positive + long-doc |
 | Redakt contracts (`tests/contracts/`) | 15 | OpenAPI diff (2) + API shape (5) + recognizer floor (8) |
 | Redakt integration (`tests/integration/`) | 3 | `language: auto` routing × {DE, EN, swap-detect fingerprint} |
-| Presidio fork chunk-1A unit (`tests/test_multi_nlp_engine.py`) | 17 | 15 chunk-1A + 2 chunk-5 FAIL-002 parametrized |
+| Presidio fork chunk-1A unit (`tests/test_multi_nlp_engine.py`) | 19 | 15 chunk-1A + 2 chunk-5 FAIL-002 parametrized + 2 chunk-4c REQ-013 runtime-revision |
 | Presidio fork install-side (`tests/test_install_nlp_models_multi.py`) | 7 | All chunk-5 FAIL-005 |
 | Offline config-shape smoke (`scripts/smoke_test_multi.py`) | 1 invocation | 4 internal assertions |
-| **Total tests** | **450 + 1 smoke** | All green at chunk-5 close-out |
+| **Total tests** | **452 + 1 smoke** | All green at chunk-4c close-out (was 450 at chunk-5 close-out; +2 for F-1 patch) |
 
 ### Files changed (across both repos)
 
-**Presidio fork (commits 1A + 1B + 5):**
-- New: `presidio_analyzer/nlp_engine/multi_nlp_engine.py` (~340 LOC).
+**Presidio fork (commits 1A + 1B + 5 + 4c):**
+- New: `presidio_analyzer/nlp_engine/multi_nlp_engine.py` (~350 LOC including chunk 4c revision-forwarding edit).
 - New: `presidio_analyzer/conf/multi.yaml`.
 - New: `presidio_analyzer/conf/multi.model_digests.json` (populated baseline).
 - New: `Dockerfile.multi`.
 - New: `scripts/smoke_test_multi.py`.
 - New: `scripts/upstream-merge-check.sh` (chunk 5).
-- New: `tests/test_multi_nlp_engine.py` (17 tests).
+- New: `tests/test_multi_nlp_engine.py` (19 tests; chunk 4c added 2 REQ-013 runtime-revision tests).
 - New: `tests/test_install_nlp_models_multi.py` (7 tests; chunk 5).
 - New: `presidio/MULTI_ENGINE.md` (chunk 5).
 - Modified: `install_nlp_models.py` (multi-engine branch + digest manifest read/write/verify).
 - Modified: `presidio_analyzer/nlp_engine/__init__.py` (`MultiNlpEngine` export).
 - Modified: `presidio_analyzer/nlp_engine/nlp_engine_provider.py` (`multi` engine registration).
+- Modified: `presidio_analyzer/nlp_engine/transformers_nlp_engine.py` (chunk 4c F-1: forward per-row `revision` into `hf_token_pipe`'s `pipe_config`; wrapped in `# === redakt: ... ===` markers).
 - Modified: `presidio_analyzer/tests/conftest.py` (skip multi engine in session-scoped fixture).
 
-**Redakt (commits 1B + 2 retry + 3 + 4 + 5):**
+**Redakt (commits 1B + 2 retry + 3 + 4 + 5 + 4c):**
 - New: `tests/contracts/` package (8 files: 2 test modules, 5 snapshot baselines, 1 conftest, plus `recognizers-baseline.json`, `openapi-baseline.json`).
 - New: `tests/integration/` package (2 files: `test_auto_detect_routing.py`, `conftest.py`).
 - New: `reports/calibration-007-before.md`, `reports/calibration-007-after.md`, `reports/req-011-recognizer-diffs.md`, `reports/req-015-probe.md` (gitignored).
@@ -456,7 +490,7 @@ All green. No regressions across any chunk.
 
 ### Deviations from the spec
 
-1. **Per-row `revision` not yet honored at runtime by upstream `TransformersNlpEngine`** (chunk 1B subsection, line 145). `install_nlp_models.py` correctly forwards `revision` to both `snapshot_download` and `from_pretrained` at build time, but upstream Presidio's `TransformersNlpEngine.load()` calls `from_pretrained(model_name)` without `revision=`. In the baked-image deployment shape there is exactly one cached snapshot per repo_id, so resolution lands on the pinned revision in practice. A future cache-mount or shared-cache deployment could surface a mismatch. Fix requires either a small Presidio-fork patch teaching `TransformersNlpEngine` to read the per-row `revision` or a pre-load shim. **Flagged for code review at Step 4b.** No production behavior change in the current deployment shape.
+1. **~~Per-row `revision` not yet honored at runtime by upstream `TransformersNlpEngine`~~ — RESOLVED at chunk 4c** (code-review F-1, MEDIUM). `install_nlp_models.py` correctly forwarded `revision` at build time, but upstream Presidio's `TransformersNlpEngine.load()` was calling `from_pretrained(model_name)` without `revision=`. Closed at chunk 4c with a small two-file fork patch: `MultiNlpEngine._build_sub_engine` now includes `revision` in the sub-engine's `models[]` row when present, and `TransformersNlpEngine.load()` forwards it into `hf_token_pipe`'s `pipe_config["revision"]` (wrapped in `# === redakt: ... ===` markers for upstream-merge ergonomics). The single `revision` reaches `transformers.pipeline(..., revision=<sha>)` and applies to both tokenizer and model `from_pretrained` calls. Two new unit tests assert positive (revision present → forwarded) and negative (revision absent → not injected, preserves upstream `"main"` default for direct callers).
 
 2. **Chunk 4 `start_period: 90s` retained instead of `30s` from REQ-014's measurement formula.** Measured cold-start was 9 s; the option (b) 2× formula computes `max(30s, ceil(2 × 9s)) = 30s`. The tracker retains the chunk-1B placeholder of 90 s as a conservative envelope (10× measurement, ~5× formula) to comfortably accommodate colder-cache scenarios (first-build, post-prune; transformer load could approach 30 s on cold OS page cache). This is a deliberate over-budget rather than under-spec; healthcheck reaches healthy state in ~3 s on warm-disk cold-start (chunk 4 evidence), so the operator observability impact is "minutes of pre-`start_period` headroom that is never consumed." Documented in chunk 4 subsection.
 
@@ -470,7 +504,7 @@ No other deviations.
 
 - **Did not run a real-model integration test for FAIL-002 sub-engine load failure** (spec validation point (c)). Structurally covered by REQ-005a Behavior B + the chunk-1B image-build verification: when `load()` raises, the analyzer process exits before binding HTTP and the healthcheck never reaches 200. Adding a real-model failure-injection integration test would mean a 10-minute image build per parametrized case for one-time evidence, with no marginal coverage beyond the structural guard. Rejected per advisor guidance.
 
-- **Did not patch the runtime `from_pretrained(revision=...)` gap.** Out of chunk-5 scope per the chunk prompt's "Don't add features beyond REQ scope" rule. Flagged in deviation 1 above for Step 4b code review to decide whether to land a fork-side patch as part of post-review polish or defer to a follow-up feature.
+- **Did not patch the runtime `from_pretrained(revision=...)` gap.** Out of chunk-5 scope per the chunk prompt's "Don't add features beyond REQ scope" rule. Flagged in deviation 1 above for Step 4b code review to decide whether to land a fork-side patch as part of post-review polish or defer to a follow-up feature. **Update (chunk 4c):** patched after code-review F-1; deviation 1 marked RESOLVED.
 
 - **Did not run the LangSmith / regression-eval-capture step (Step 4g).** Per the chunk prompt's "Skip LangSmith / regression-eval-capture (Step 4g — orchestrator handles after 4f)" rule.
 
