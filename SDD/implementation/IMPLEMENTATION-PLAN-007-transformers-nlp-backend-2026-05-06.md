@@ -35,11 +35,11 @@ Status legend: `Not Started` · `In Progress` · `Complete` · `Blocked`.
 - [x] **REQ-004** — `install_nlp_models.py` extension for the `multi` engine — **Complete** (chunk 1B)
 - [x] **REQ-005** — Dockerfile + docker-compose wiring — **Complete** (chunk 1B; new `Dockerfile.multi`, root `docker-compose.yml` retargeted)
 - [x] **REQ-005a** — Two-phase startup contract (readiness probe wired to `is_loaded()`) — **Complete** (chunk 1B selected Behavior B: connection-refused while engine loads. Documented below.)
-- [ ] **REQ-006** — Per-entity score floor re-tune (Redakt-side) — Not Started
-- [ ] **REQ-007** — Global threshold knob re-tune (analyzer-side, per language) — Not Started
-- [ ] **REQ-008** — Calibration corpus expansion (broader class) — Not Started
-- [ ] **REQ-009** — New CI fixtures for `broader class` over-detection — Not Started
-- [ ] **REQ-009b** — Held-out positive fixtures (DE LOCATION, DE DATE_TIME) and long-document anchor — Not Started
+- [x] **REQ-006** — Per-entity score floor re-tune (Redakt-side) — **Complete** (chunk 2 retry; four-bar stopping condition verified under Option A amended spec; `entity_score_thresholds` retained at chunk-1B defaults, evidence in `reports/calibration-007-after.md`)
+- [x] **REQ-007** — Global threshold knob re-tune (analyzer-side, per language) — **Complete** (chunk 2 retry; `de` row's `low_score_entity_names: [ORG, ORGANIZATION]` / `low_confidence_score_multiplier: 0.4` retained from chunk-1B placeholders, evidence in `reports/calibration-007-after.md`. EN row frozen per REQ-007 unchanged.)
+- [x] **REQ-008** — Calibration corpus expansion (broader class) — **Complete** (chunk 2 retry; 15 new broader-class fixtures + 1 long-doc anchor exercised by `tools/calibration_report.py --raw --out`)
+- [x] **REQ-009** — New CI fixtures for `broader class` over-detection — **Complete** (chunk 2 retry; 15 `expect_clean: true` entries added to `tests/eval/fixtures/de.yaml`)
+- [x] **REQ-009b** — Held-out positive (DE LOCATION) and long-document anchor — **Complete** (chunk 2 retry; 2 fixtures added per Option A amendment — DE LOCATION + 557-token long-doc anchor; DE DATE_TIME held-out positive dropped per Amendment 2026-05-06)
 - [ ] **REQ-010** — API contract preservation — Not Started
 - [ ] **REQ-010a** — API-shape regression test (byte-identical envelope + headers) — Not Started
 - [ ] **REQ-011** — Recognizer-registry floor preservation — Not Started
@@ -149,6 +149,46 @@ These remain to be exercised in subsequent chunks.
 **Digest manifest baseline state at chunk 1B commit:** Empty placeholder `{}`. Per `install_nlp_models._load_digest_manifest` (lines 384-411), empty == missing == first-build baseline-capture mode. The chunk-2 build (which completes the image layer export) is what populates the baseline back into the on-disk manifest; subsequent builds verify against it.
 
 **Counter usage for chunk 1B:** Reads ~7/10, Nested subagents 0/4. Chunk 1B partial-commit closeout: Reads 5/10, Nested subagents 0/4.
+
+### Chunk 2 retry — Calibration & fixtures (post Option A)
+
+**Status:** Complete.
+
+**Context.** This chunk is a retry of chunk 2 after the Spec Amendment 2026-05-06 (Option A) landed. The prior chunk-2 attempt (compaction file `SDD/orchestration/compacted/implementation-compacted-2026-05-06_13-45-37.md`) bailed out at iteration 0 with a deliberate spec-level handoff: REQ-006 Bar 1 and Bar 2 were conjunction-impossible for `DATE_TIME` under REQ-007's EN-row freeze. Pablo selected Option A: drop the DE DATE_TIME held-out positive (xlm-roberta CoNLL-03 has no DATE label; DE DATE_TIME is regex-only via `DateRecognizer` at 0.6/0.8 ceiling — model-design limitation), keep the DE LOCATION held-out positive, rewrite Bar 2 entity-conditional. No EN-row change. No ADR amendment.
+
+**Files modified (Redakt repo):**
+- `tests/eval/fixtures/de.yaml` — added 17 new entries:
+  - 15 `expect_clean: true` broader-class fixtures (REQ-009): `Personalausweis`, `Reisepassnummer`, `Krankenversicherungsnummer`, `Führerschein`, `Steuer-IdNr.`, `Sozialversicherungsnummer`, `Bundespersonalausweis`, `Aufenthaltstitel`, `Mitarbeiterausweis`, `Versicherungsnummer`, `Geburtsurkunde`, `Steuernummer`, `Kontonummer`, `Mitgliedsnummer`, `Kundennummer`.
+  - 1 DE LOCATION held-out positive (REQ-009b): `Sie wohnt in Berlin und arbeitet in München.` with `expect: [LOCATION]`.
+  - 1 long-doc anchor (REQ-009b / EDGE-006 / PERF-001): the 557-token German prose paragraph (3× repetition of the ~200-word base from compaction file proof-of-tokenization). `expect_clean: true` — no PII, exercises stride: 16 windowing.
+- `SDD/implementation/IMPLEMENTATION-PLAN-007-transformers-nlp-backend-2026-05-06.md` (this file) — REQ-006/007/008/009/009b marked Complete; this subsection appended.
+- `SDD/orchestration/progress.md` — Step 4a chunk 2 retry subsection appended.
+
+**Files NOT modified (calibration outcome — no threshold changes required):**
+- `src/redakt/config.py` — `entity_score_thresholds` defaults retained at `{"LOCATION": 0.90, "DATE_TIME": 0.95}` (REQ-006 evidence: all four bars hold without movement).
+- `presidio/presidio-analyzer/presidio_analyzer/conf/multi.yaml` — `de` row's `low_score_entity_names: [ORG, ORGANIZATION]` / `low_confidence_score_multiplier: 0.4` retained from chunk-1B placeholders. The placeholders work as intended: `Beispiel AG` raw 0.9999 → post-multiplier 0.3999 → filtered by 0.35 default.
+- `tests/eval/_loader.py` / `tests/eval/test_calibration.py` — no harness change needed; `expect_clean` and "must contain" branches both already supported (verified at `test_calibration.py:46-58`).
+
+**Reports captured:**
+- `reports/calibration-007-before.md` — baseline state after fixture addition, before any threshold considerations.
+- `reports/calibration-007-after.md` — post-verification state with full four-bar annotation table and rationale per knob.
+
+**Four-bar stopping condition (REQ-006) verification (entity-conditional Bar 2 per Amendment 2026-05-06):**
+
+| Bar | Status | Evidence |
+| --- | ------ | -------- |
+| 1 — Negative (existing + new clean) | PASS | 41 existing + 15 broader-class clean + 1 long-doc anchor = 57 `expect_clean` / `issubset` fixtures green. All 15 broader-class fixtures report `redakt: —` and `raw: —` per `reports/calibration-007-after.md`. |
+| 2 — Held-out positive (entity-conditional) | PASS | DE LOCATION fixture `Sie wohnt in Berlin und arbeitet in München.` produces `redakt: LOCATION(1.00)`. DE DATE_TIME excluded per Amendment 2026-05-06 (xlm-roberta CoNLL-03 has no DATE label). DE PERSON / ORG retain coverage via existing fixtures. |
+| 3 — Score-distribution annotation | N/A | No threshold values committed; no annotation required. Audit table in `reports/calibration-007-after.md` documents rationale per knob. |
+| 4 — Reproducibility (±0.05) | PASS | Re-run produces byte-identical report modulo timestamp line. No threshold movement, so ±0.05 reproducibility is trivial. |
+
+**Iteration count:** 0. With Option A landed, all four bars hold against committed-default thresholds without any movement. Fixture addition alone satisfied REQ-008 / REQ-009 / REQ-009b.
+
+**Test invocation:** `uv run pytest tests/eval/` from project root → `58 passed in 4.56s`.
+
+**Calibration tooling:** `uv run python tools/calibration_report.py --raw --presidio-url http://localhost:5002 --out reports/calibration-007-after.md`. Note: the analyzer container does not publish port 5002 to the host (per REQ-005's docker-compose wiring — internal-only network per SEC-004). For host-side `--raw` calibration runs, the implementer used a temporary `alpine/socat` container on the `redakt_default` network forwarding host port 5002 → `presidio-analyzer:5001`. This is dev-only ergonomics; no production-path change. Future calibration runs may reuse the same socat pattern or run the tool from inside a container on the docker network.
+
+**Counter usage for chunk 2 retry:** Reads ~9/15, Nested subagents 0/4.
 
 ## Notes
 

@@ -492,3 +492,34 @@ After decision, autonomous flow resumes at chunk 2 with the amended spec. Estima
 **Commit.** Amendment commit will be created by the orchestrator (this subagent does not commit).
 
 **Next sub-step.** Chunk 2 retry with the unblocked spec — calibration iterations (REQ-006 / REQ-007 / REQ-008), 17 new fixtures (15 `expect_clean: true` + 2 held-out positive/long-doc), before/after `tools/calibration_report.py --raw --out` reports, four-bar stopping condition with the entity-conditional Bar 2. The chunk-2 subagent does NOT need to revisit `entity_score_thresholds["DATE_TIME"]` — the DATE_TIME conflict is removed by amendment, current value (0.95) stays unless the chunk-2 calibration surfaces independent justification to change it.
+
+### Step 4a chunk 2 retry — Calibration
+
+**Status:** Complete. REQ-006, REQ-007, REQ-008, REQ-009, REQ-009b all marked Complete in IMPLEMENTATION-PLAN-007.
+
+**Outcome.** With Spec Amendment 2026-05-06 (Option A) landed, the four-bar stopping condition holds at iteration 0 — no threshold movement was empirically required. The chunk-2 retry's substantive change is the addition of 17 new DE fixtures to `tests/eval/fixtures/de.yaml`:
+
+- **15 `expect_clean: true` broader-class entries** (REQ-009): the 10 named (`Personalausweis`, `Reisepassnummer`, `Krankenversicherungsnummer`, `Führerschein`, `Steuer-IdNr.`, `Sozialversicherungsnummer`, `Bundespersonalausweis`, `Aufenthaltstitel`, `Mitarbeiterausweis`, `Versicherungsnummer`) + 5 sub-class extras (`Geburtsurkunde`, `Steuernummer`, `Kontonummer`, `Mitgliedsnummer`, `Kundennummer`). All produce `redakt: —` and `raw: —` against xlm-roberta-large-finetuned-conll03-german (zero raw entities at any threshold). Converts the model-side fix into a CI guardrail.
+- **1 DE LOCATION held-out positive** (REQ-009b): `Sie wohnt in Berlin und arbeitet in München.` with `expect: [LOCATION]`. Anchors REQ-006 Bar 2 (entity-conditional, must contain LOCATION). Detected `redakt: LOCATION(1.00)`.
+- **1 long-doc anchor** (REQ-009b / EDGE-006 / PERF-001): the 557-token German prose paragraph (3× repetition of the ~200-word base from the 13:45 compaction file's proof-of-tokenization). `expect_clean: true`. Exercises the `stride: 16` windowing path; produces zero entities through Redakt's filters (DE_ID_CARD candidates surface at raw 0.15 but are dropped by the 0.35 default `score_threshold`).
+
+**Four-bar stopping condition status (REQ-006, entity-conditional Bar 2 per Amendment 2026-05-06):**
+
+- Bar 1 (Negative): PASS. 57 `expect_clean` / `issubset` fixtures all green; broader-class line shows `redakt: —` for every name per REQ-008 acceptance.
+- Bar 2 (Held-out positive, entity-conditional): PASS. DE LOCATION present in `found` for the held-out positive fixture. DE DATE_TIME excluded (xlm-roberta has no DATE label; documented as model-design limitation).
+- Bar 3 (Score-distribution annotation): N/A — no threshold values committed, so no per-value annotation required. The "Final committed values" table in `reports/calibration-007-after.md` documents the rationale per knob for audit traceability.
+- Bar 4 (Reproducibility ±0.05): PASS — re-run produces byte-identical report modulo timestamp.
+
+**Threshold tunes committed:** **None.** All Redakt-side defaults (`entity_score_thresholds: {"LOCATION": 0.90, "DATE_TIME": 0.95}`) and analyzer-side knobs (`de.low_score_entity_names: [ORG, ORGANIZATION]`, `de.low_confidence_score_multiplier: 0.4`) retained from chunk-1B placeholders. EN row frozen per REQ-007 unchanged.
+
+**Iteration count:** 0.
+
+**Test outcome:** `uv run pytest tests/eval/` → 58 passed in 4.56s.
+
+**Reports captured:**
+- `reports/calibration-007-before.md` — baseline (post-fixture-addition, pre-verification).
+- `reports/calibration-007-after.md` — verification with annotated four-bar table and per-knob rationale.
+
+**Two-repo discipline:** No Presidio-fork commit (multi.yaml unchanged). Single Redakt commit for fixtures + reports + tracker updates.
+
+**Counter usage for chunk 2 retry:** Reads ~9/15, Nested subagents 0/4.
