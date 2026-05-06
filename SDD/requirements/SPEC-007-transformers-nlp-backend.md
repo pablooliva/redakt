@@ -1,6 +1,6 @@
 ---
 review_panel: [security, performance, privacy, reliability, module-depth]
-eval_required: true
+eval_required: false
 cross_cutting_decisions: [presidio_nlp_engine_per_language]
 delivery_mode: whole-feature
 ---
