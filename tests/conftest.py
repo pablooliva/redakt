@@ -70,6 +70,13 @@ SAMPLE_PRESIDIO_RESULTS = [
         "entity_type": "PERSON",
         "start": 11,
         "end": 21,
+        # NOTE (SDD-007 4e F-O): the 0.85 score here is BACKEND-AGNOSTIC.
+        # Tests under `tests/` use these mocks to exercise Redakt's
+        # downstream behavior (entity-threshold filtering, anonymizer
+        # mapping, audit logging) — the score value is illustrative,
+        # not a claim about any specific NLP backend's output. The eval
+        # suite (`tests/eval/`) hits the real analyzer for behavior
+        # under the deployed config (multi.yaml: en→spaCy, de→xlm-roberta).
         "score": 0.85,
         "analysis_explanation": None,
         "recognition_metadata": None,

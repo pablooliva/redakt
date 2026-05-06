@@ -34,17 +34,20 @@ services:
       # Presidio analyzer's Flask server only binds AFTER
       # `MultiNlpEngine.load()` completes for both en and de — until then,
       # `curl` exits non-zero and compose interprets that as "not ready,
-      # keep retrying." `start_period` 90s gives ~3x headroom over the
-      # 10-30s cold-load expectation in PERF-002 (REQ-014 option (b),
-      # 2x safety margin). The `start_period` is the maximum
-      # not-yet-healthy window before docker compose declares the
-      # container unhealthy; `interval` + `retries` give 20*15s = 5min of
-      # post-start_period headroom on a slow-cache cold start.
+      # keep retrying."
+      #
+      # SDD-007 4e F-D: `start_period: 30s` adopts REQ-014's formula
+      # `max(30s, ceil(2 × measured_cold_start_seconds))` — measured cold
+      # start was 9s, formula yields max(30, 18) = 30s. The chunk-1B
+      # placeholder was 90s; that is now retired in favor of the
+      # measurement-driven value. `retries: 20 × interval: 15s = 5min` of
+      # post-start_period headroom remains in case a colder-cache
+      # production environment exceeds the 2× margin.
       test: ["CMD", "curl", "-f", "http://localhost:5001/health"]
       interval: 15s
       timeout: 5s
       retries: 20
-      start_period: 90s
+      start_period: 30s
 
   presidio-anonymizer:
     build:

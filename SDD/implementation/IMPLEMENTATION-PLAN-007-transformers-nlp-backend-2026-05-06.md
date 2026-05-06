@@ -508,6 +508,27 @@ No other deviations.
 
 - **Did not run the LangSmith / regression-eval-capture step (Step 4g).** Per the chunk prompt's "Skip LangSmith / regression-eval-capture (Step 4g — orchestrator handles after 4f)" rule.
 
+## Future maintenance
+
+**REQ-009 broader-class extension rule (operationalized — SDD-007 4e F-G).** The spec mandates: any German common-noun-as-`PERSON` over-detection encountered during calibration that is NOT in the 15 enumerated bare nouns MUST be added to `tests/eval/fixtures/de.yaml` as an `expect_clean: true` entry before landing the change. This rule is now codified at this location and at the top of `tests/eval/fixtures/de.yaml`'s broader-class section. Operator workflow when adding/swapping a German NLP model:
+
+1. Run `uv run python tools/calibration_report.py --raw --out` against the new model.
+2. Inspect each German fixture's `redakt:` and `raw:` columns for novel `PERSON` hits on bare common nouns.
+3. For every novel over-detection: add the noun to `tests/eval/fixtures/de.yaml` as `expect_clean: true` with a `notes:` field tagged `Broader-class extension (REQ-009 §extension rule).` BEFORE landing the model swap.
+4. Re-run `uv run pytest tests/eval/` to confirm all expanded clean fixtures pass.
+
+This converts a procedural commitment into a checklist tied to the calibration tool's existing output. CI does NOT enforce step 2 (no automated noun-vocabulary crawl); enforcement is operator vigilance, gated by `/sdd:critical-review` at any model-swap chunk.
+
+**Single-arch image build (SDD-007 4e F-H).** The README documents `DOCKER_DEFAULT_PLATFORM=linux/arm64` (or `linux/amd64`) for local dev to avoid a multi-arch buildx default. Production deploys should pin `--platform` explicitly in their orchestrator manifest. Spec: PERF-003 is documentation-only; this guidance is operator-facing.
+
+**FAIL-002 partial-load process-exit verification (SDD-007 4e F-K).** Unit-level coverage in `presidio/presidio-analyzer/tests/test_multi_nlp_engine.py::test_load_propagates_sub_engine_failure_and_is_loaded_returns_false` proves `is_loaded()` returns False when a sub-engine raises. Deployment-shape (Docker exits non-zero → restart policy retries) is structurally covered by REQ-005a Behavior B + the chunk-1B image-build verification: when `MultiNlpEngine.load()` raises, the analyzer process exits before binding HTTP and the healthcheck never reaches 200. A captured failure-injection transcript was rejected at chunk 5 per advisor guidance (10-min image build per parametrized case, no marginal coverage). 4e F-F additionally relaxes the one-shot guard so in-process retry is permitted after a transient failure (deployment shape unchanged; SDK / single-process embedders are no longer locked out).
+
+**REQ-013 tamper-test evidence (SDD-007 4e F-A, F-N).** A populated `multi.model_digests.json` is now committed to the Presidio fork (was the empty placeholder `{}` at chunk 1B partial commit; populated from the running analyzer image at 4e). Verify-mode is now active on subsequent builds. The tamper test was run against the populated manifest at 4e; the failing build's stderr is captured under `reports/req-013-tamper.md` (gitignored). Unit-level tamper coverage lives in `presidio/presidio-analyzer/tests/test_install_nlp_models_multi.py` (5 new tests at 4e). The atomic-write fix (`os.replace` pattern) at 4e F-I closes the parallel-build race window.
+
+**HF Hub token plumbing (SDD-007 4e F-L, RISK-001).** Token plumbing is operator-hand-rolled. The README documents the BuildKit-secret invocation pattern (`docker buildx build --secret id=hf_token,env=HUGGINGFACE_HUB_TOKEN ...`) for environments that hit anonymous rate limits. The default build path is anonymous; this is acceptable for typical dev cadence given the model is fetched once per build and BuildKit caches the layer. Production deploys that rebuild frequently should configure the token; the corresponding `--mount=type=secret` block in `Dockerfile.multi` is left as a deliberate operator extension to avoid coupling the image to a token-presence assumption.
+
+**Two-repo SHA traceability (SDD-007 4e F-J).** `.presidio-pin` at the Redakt repo root records the fork branch + commit SHA range for the feature. Future Redakt commits that touch the analyzer integration MUST update this file in the same commit. If the fork rebases (RISK-003), update the SHAs here to keep the pairing intact. The CLAUDE.md decision to keep `presidio/` as a fork checkout (not a submodule) stands — `.presidio-pin` is the lighter-weight discipline alternative.
+
 ## Notes
 
 - Two-repo discipline: chunk 1A's code lands in the Presidio fork (`./presidio/`), not the Redakt repo. The Redakt-side commit for chunk 1A is this tracker file plus the progress entry. Chunk 1B follows the same split — Presidio fork takes `multi.yaml`, `install_nlp_models.py`, `Dockerfile.multi`, `multi_nlp_engine.py` (`.nlp` property), `multi.model_digests.json`, `scripts/smoke_test_multi.py`; Redakt takes `docker-compose.yml` and the SDD tracker/progress updates.

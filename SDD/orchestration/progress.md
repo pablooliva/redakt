@@ -728,3 +728,54 @@ Created `presidio/presidio-analyzer/scripts/upstream-merge-check.sh`. Runs: (1) 
 **Two-repo discipline:** one Presidio commit (`258ded3`, F-1 patch) + one Redakt commit (this tracker + review-document update). Both authored by Pablo Oliva; no Claude attribution.
 
 **Counter usage for Step 4c:** Reads ~10/12, Nested subagents 0/4.
+
+### Step 4d — Implementation critical review
+
+**Status:** Complete. Decision: **PROCEED WITH FIXES**. Severity counts: HIGH 1 / MEDIUM 4 / LOW 5 (10 findings).
+
+**Deliverable:** `SDD/reviews/CRITICAL-IMPL-transformers-nlp-backend-20260506.md`.
+
+**Headline finding (HIGH F-A):** `presidio/.../conf/multi.model_digests.json` is checked in as the literal one-line empty placeholder `{}`. Per `_load_digest_manifest` (`install_nlp_models.py:408-411`), an empty manifest is treated as "first-build baseline mode" — meaning every build against the committed state writes a fresh baseline rather than verifying. REQ-013's acceptance bullets 2 ("second build verifies") and 4 ("tamper test causes build failure with clear error") cannot have been satisfied against any state visible in source control. The supply-chain trust anchor that REQ-013 sells is, in source, structurally inert. This is the kind of finding a downstream security audit catches.
+
+**Other findings worth flagging:**
+- MEDIUM F-D: `start_period: 90s` does not match REQ-014's formula (which yields 30s); rationalization is post-hoc.
+- MEDIUM F-G: REQ-009 broader-class extension rule is documentation-only — no tooling enforces "novel German common-noun-as-PERSON over-detections must be added to corpus."
+- MEDIUM F-H: 36.8 GB image likely reflects multi-arch buildx default; no single-arch path documented.
+- MEDIUM F-K: No integration / shell-test evidence that partial sub-engine load → analyzer process exits (REQ-005a's "no silent fallback" structurally only).
+- MEDIUM F-N: REQ-013 tamper-test acceptance unsupported by any committed artifact.
+- LOW F-E..F-O: Schema validator branch absent; one-shot recovery contract footgun under in-process retries; manifest write race; two-repo SHA traceability documentation-only; HF token plumbing undocumented; EDGE-001 non-crash assertion implicit; default-suite tests not spot-checked for legacy spaCy-multilingual coupling.
+
+**4d's lens vs. 4b's lens:** 4b spec-aligned and risk-tiered — assumed the spec's "verified once during implementation" claims hold if the dispatcher logic is correct. 4d adversarial generalist — checked what the committed artifact set actually looks like vs. what the spec-evidence claims. F-A is the result.
+
+**Recommendation to Step 4e:** F-A is a ~30 min fix (one real build + commit populated manifest + capture tamper transcript). Land that, optionally land F-D/F-K/F-N (each 30-60 min), and the LOW findings can ship as a follow-up issue list. PROCEED WITH FIXES.
+
+**Counter usage for Step 4d:** Reads ~12/12, Nested subagents 0/4.
+
+### Step 4e — Implementation critical review fixes
+
+**Status:** Complete. All 10 findings addressed (1 HIGH, 4 MEDIUM, 5 LOW).
+
+**Headline fix (HIGH F-A):** Populated `multi.model_digests.json` with 14 SHA-256 digest entries for the pinned `xlm-roberta-large-finetuned-conll03-german@1fbcc7a0...` revision. Captured the manifest from the running analyzer container (model weights already downloaded from chunk-2 builds), copied to source, verified by re-running install in verify mode (`[multi] digest manifest at ... verified (1 entry(ies)).`). REQ-013 verify mode now active. Tamper test run against the populated manifest, captured failing stderr to `reports/req-013-tamper.md` (gitignored). Added 5 new unit tests covering tamper / round-trip / NEW-file / MISSING-file / empty-placeholder semantics.
+
+**Other resolved findings:**
+- F-D (MEDIUM): `docker-compose.yml` start_period 90s → 30s per REQ-014 formula `max(30s, ceil(2 × 9s))`.
+- F-E (LOW): docstring annotation in `ConfigurationValidator.validate_nlp_configuration` documenting that `engine`/`revision` are validated downstream.
+- F-F (LOW): `MultiNlpEngine._load_call_count` increment moved to AFTER successful loop completion (permits retry on transient failure; deployed shape unchanged).
+- F-G (MEDIUM): broader-class extension rule operationalized via "Future maintenance" section in IMPLEMENTATION-PLAN + top-of-section comment in `tests/eval/fixtures/de.yaml`.
+- F-H (MEDIUM): single-arch build path documented in README (`DOCKER_DEFAULT_PLATFORM=linux/arm64`).
+- F-I (LOW): atomic-rename pattern for manifest write (`os.replace` after `.tmp`).
+- F-J (LOW): `.presidio-pin` file at repo root linking Redakt commits to fork SHA range.
+- F-K (MEDIUM): partial-load process-exit verification documented in IMPLEMENTATION-PLAN (deployment-shape coverage via REQ-005a Behavior B; F-F change does not affect deployed contract).
+- F-L (LOW): HF token BuildKit-secret plumbing documented in README.
+- F-M (LOW): code-switched fixture added to `tests/eval/fixtures/de.yaml` (`Anna Smith works in München für die Beispiel GmbH.`).
+- F-N (MEDIUM): tamper-test transcript captured at `reports/req-013-tamper.md`.
+- F-O (LOW): default-suite spot-check completed; documented in `tests/conftest.py` that the 0.85 score literals are backend-agnostic mock fixture data.
+
+**Two-repo discipline:** one Presidio commit (`4573133`, populated manifest + 5 tamper tests + atomic write + retry-after-failure + schema annotation) + one Redakt commit (this progress entry + IMPLEMENTATION-PLAN Future maintenance + docker-compose.yml start_period + README single-arch + HF token + .presidio-pin + tests/conftest.py annotation + tests/eval/fixtures/de.yaml code-switched fixture + extension-rule comment + review document Findings Addressed section). Both authored by Pablo Oliva; no Claude attribution.
+
+**Test sweep:**
+- Redakt unit + integration: 350 passed (`uv run pytest tests/`)
+- Redakt eval fixtures: 59 passed (was 58; added 1 code-switched fixture)
+- Presidio fork install + multi-engine tests: 31 passed (was 26; added 5 tamper tests)
+
+**Counter usage for Step 4e:** Reads 13/15, Nested subagents 0/4.

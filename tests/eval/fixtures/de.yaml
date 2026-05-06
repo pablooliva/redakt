@@ -42,6 +42,12 @@
 # spurious PERSON 0.85; under xlm-roberta-large-finetuned-conll03-german
 # they produce zero entities. Keeping them as expect_clean fixtures converts
 # the model-side fix into a CI signal that future model swaps must respect.
+#
+# REQ-009 EXTENSION RULE (operationalized in IMPLEMENTATION-PLAN
+# §"Future maintenance"): if calibration of a future German NLP model
+# discovers a NEW common-noun-as-PERSON over-detection that is NOT in
+# this list, ADD it here as `expect_clean: true` BEFORE landing the
+# model swap. Out-of-scope deferral is not permitted.
 
 - text: "Personalausweis"
   language: de
@@ -130,6 +136,19 @@
   language: de
   expect: [LOCATION]
   notes: "REQ-009b DE LOCATION held-out positive. Anchors REQ-006 Bar 2 (must contain LOCATION). xlm-roberta produces LOC for both Berlin and München at high score; harness asserts presence."
+
+# EDGE-001 code-switched fixture (SDD-007 4e F-M). Mixed German + English
+# in one sentence. lingua-py is bypassed by the explicit `language: de`,
+# so this exercises the de transformer pipeline end-to-end against
+# foreign-vocab spans that may stress the xlm-roberta tokenizer. The
+# spec's EDGE-001 disposition is "no test coverage required beyond
+# non-crash"; the fixture's `language: de` + `expect_clean: false` +
+# `expect: [LOCATION]` both proves non-crash AND asserts the German
+# LOCATION (München) is found despite the English company-name span.
+- text: "Anna Smith works in München für die Beispiel GmbH."
+  language: de
+  expect: [LOCATION]
+  notes: "EDGE-001 code-switched non-crash + DE LOCATION held. English subject + German place + German company suffix. Asserts the de transformer pipeline tokenizes mixed text without raising AND extracts München. PERSON detection on Anna Smith is not asserted (CoNLL-03 German is conservative on English-style names)."
 
 - text: "Das Projekt befindet sich in einer entscheidenden Phase. Die Anforderungen wurden in den letzten Wochen zusammen mit den Fachbereichen erarbeitet. Wir haben die Dokumentation überarbeitet und neue Kapitel zur Architektur ergänzt. Im Rahmen der Konferenz stellten die Entwicklerinnen und Entwickler erste Ergebnisse vor. Die Diskussionen in den Workshops zeigten ein breites Interesse an dem Thema. Wir planen weitere Schulungen, um die Mitarbeitenden auf den neuen Stand zu bringen. Auch die Sicherheitsaspekte werden ausführlich behandelt und in einem eigenen Kapitel beschrieben. Die Tests werden durch automatisierte Verfahren unterstützt, sodass eine hohe Qualität gewährleistet bleibt. Über kommende Änderungen werden wir Sie regelmäßig informieren. Bei Fragen wenden Sie sich bitte an die zuständigen Ansprechpersonen im Bereich Forschung und Entwicklung. Das Projekt befindet sich in einer entscheidenden Phase. Die Anforderungen wurden in den letzten Wochen zusammen mit den Fachbereichen erarbeitet. Wir haben die Dokumentation überarbeitet und neue Kapitel zur Architektur ergänzt. Im Rahmen der Konferenz stellten die Entwicklerinnen und Entwickler erste Ergebnisse vor. Die Diskussionen in den Workshops zeigten ein breites Interesse an dem Thema. Wir planen weitere Schulungen, um die Mitarbeitenden auf den neuen Stand zu bringen. Auch die Sicherheitsaspekte werden ausführlich behandelt und in einem eigenen Kapitel beschrieben. Die Tests werden durch automatisierte Verfahren unterstützt, sodass eine hohe Qualität gewährleistet bleibt. Über kommende Änderungen werden wir Sie regelmäßig informieren. Bei Fragen wenden Sie sich bitte an die zuständigen Ansprechpersonen im Bereich Forschung und Entwicklung. Das Projekt befindet sich in einer entscheidenden Phase. Die Anforderungen wurden in den letzten Wochen zusammen mit den Fachbereichen erarbeitet. Wir haben die Dokumentation überarbeitet und neue Kapitel zur Architektur ergänzt. Im Rahmen der Konferenz stellten die Entwicklerinnen und Entwickler erste Ergebnisse vor. Die Diskussionen in den Workshops zeigten ein breites Interesse an dem Thema. Wir planen weitere Schulungen, um die Mitarbeitenden auf den neuen Stand zu bringen. Auch die Sicherheitsaspekte werden ausführlich behandelt und in einem eigenen Kapitel beschrieben. Die Tests werden durch automatisierte Verfahren unterstützt, sodass eine hohe Qualität gewährleistet bleibt. Über kommende Änderungen werden wir Sie regelmäßig informieren. Bei Fragen wenden Sie sich bitte an die zuständigen Ansprechpersonen im Bereich Forschung und Entwicklung."
   language: de

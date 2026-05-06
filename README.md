@@ -59,6 +59,33 @@ docker compose up --build
 
 Open [http://localhost:8000](http://localhost:8000) for the web UI.
 
+**Single-arch build (recommended).** On macOS / Apple Silicon hosts,
+buildx may default to producing a multi-arch image stack that inflates
+the analyzer image to ~36 GB uncompressed (the German transformer
+weights + spaCy lemma surfaces are duplicated across `linux/amd64` and
+`linux/arm64` layers). For local dev, force a single-arch build:
+
+```bash
+DOCKER_DEFAULT_PLATFORM=linux/arm64 docker compose up --build
+# or, on x86_64 hosts:
+DOCKER_DEFAULT_PLATFORM=linux/amd64 docker compose up --build
+```
+
+Single-arch builds typically land at ~10–15 GB uncompressed. Spec ref:
+SPEC-007 PERF-003 (image size is documentation-only; this is operator
+guidance, not a hard cap).
+
+**Hugging Face token (optional, build-time).** The analyzer image
+fetches the German transformer weights from Hugging Face during the
+build. Anonymous fetches are subject to HF Hub rate limits (RISK-001).
+To pass a token without leaking it into an image layer, use BuildKit
+secrets. Token plumbing is operator-hand-rolled and not part of the
+default build path; if you hit `HTTP 429`, configure `HF_TOKEN` /
+`HUGGINGFACE_HUB_TOKEN` in your environment and pass it through
+`docker buildx build --secret id=hf_token,env=HUGGINGFACE_HUB_TOKEN ...`
+with a corresponding `--mount=type=secret,id=hf_token` in
+`Dockerfile.multi`.
+
 ## API
 
 All endpoints accept `"language": "auto"` (default) or an explicit language code. All endpoints respect allow lists and are audit-logged.
