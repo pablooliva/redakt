@@ -875,3 +875,20 @@ Redakt (`feature/007-transformers-nlp-backend`):
 5. Update the `Status` column of the datasets table in `evals/README.md` from `needs-population` to `populated`.
 
 **Counter usage for Step 4g:** Reads 2/10, Nested subagents 0/4. Bail-out budgets respected.
+
+## Post-Completion Decision (2026-05-06): LangSmith eval scaffolding removed
+
+After SDD-007 closed, Pablo decided the LangSmith regression eval scaffolding doesn't fit this feature and reverted it. Reasoning:
+
+1. **Privacy paradox.** Redakt's reason for existing is to keep PII out of third-party AI tools. LangSmith *is* a third-party AI tool. Populating the dataset with real golden examples would mean uploading production traces (containing PII pre-redaction) to the very kind of system Redakt is built to protect against. The synthetic calibration corpus is safe to upload, but production traces aren't.
+
+2. **The local regression check already exists.** `tests/eval/` (58 broader-class + held-out positive fixtures + 1 code-switched fixture = 59 total) plus `reports/calibration-007-{before,after}.md` plus the four-bar stopping condition (REQ-006) give a reproducible regression check that runs offline in CI. Same job LangSmith would do, no privacy issue.
+
+3. **Planning subagent over-reached.** CLARIFICATION-007's "eval_required: yes" referred to the calibration before/after Markdown reports (which DID land at `reports/`). The Step 3a planning subagent interpreted it as "scaffold LangSmith." That was scope creep, not a CLARIFIED requirement.
+
+**Actions taken (post-completion cleanup commit):**
+- `git rm -r evals/` — removed offline LangSmith stubs.
+- SPEC-007 frontmatter `eval_required: true → false`.
+- This block records the decision; the historical Step 4g entry above stays for audit.
+
+**Manual follow-up for Pablo:** none. The local eval suite + calibration reports cover regression. If a future model swap needs richer eval coverage, scope a separate ADR / spec for it; don't scaffold LangSmith implicitly.
