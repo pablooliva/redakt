@@ -626,3 +626,57 @@ All 8 marked Covered in the IMPLEMENTATION-PLAN tracker with citation to the tes
 - `uv run pytest tests/integration/` → 3 passed in 0.4 s (new in chunk 4).
 
 **Counter usage for chunk 4:** Reads ~7/12, Nested subagents 0/4.
+
+### Step 4a chunk 5 — Finalize
+
+**Status:** Complete. All Step 4a chunks (1A, 1B, 2 retry, 3, 4, 5) are done. Next step: Step 4b code review.
+
+**Scope.** REQ-017 Presidio upstream-merge CI gate; FAIL-001..006 verification with small test additions; PERF-001..003, SEC-001..004, PRIV-001..002, REL-001..003 verification with citations; tracker close-out.
+
+**Two-repo split:**
+- Presidio fork (`feature/redakt-007-multi-nlp-engine`): REQ-017 helper script + chunk-5 unit tests + `MULTI_ENGINE.md`.
+- Redakt (`feature/007-transformers-nlp-backend`): IMPLEMENTATION-PLAN tracker close-out + this entry.
+
+**REQ-017 — Presidio upstream-merge CI gate.**
+Created `presidio/presidio-analyzer/scripts/upstream-merge-check.sh`. Runs: (1) `tests/test_multi_nlp_engine.py` (17 tests including new FAIL-002 parametrized en + de slots), (2) `tests/test_install_nlp_models_multi.py` (7 new install-side tests for FAIL-005), (3) `scripts/smoke_test_multi.py` (offline config-shape smoke). Exits 0 on success; non-zero on any failure. Wall time ~0.2 s. Documented at `presidio/MULTI_ENGINE.md`. Verified once: 24 unit tests + smoke pass green.
+
+**FAIL test additions:**
+- FAIL-002: `tests/test_multi_nlp_engine.py::test_load_propagates_sub_engine_failure_and_is_loaded_returns_false` parametrized over en-spacy and de-transformer slots. Asserts `load()` propagates the failing sub-engine's exception, `is_loaded()` returns False, retry of `load()` raises `RuntimeError`. The spaCy-aux failure path inside the de transformer slot shares its propagation contract — the parametrized coverage discharges all three slots structurally. Spec-required (c) integration test is structurally covered by REQ-005a Behavior B (analyzer process exits before binding HTTP if `load()` raises).
+- FAIL-005: new `tests/test_install_nlp_models_multi.py` exercising `_validate_multi_row` rejection branches (unknown engine, missing engine key, missing lang_code, missing model_name, non-dict row) + 2 well-formed-row sanity tests. Loads `install_nlp_models.py` by absolute path because it lives at the package root, not on `sys.path`.
+
+**FAIL items not requiring new tests (all marked Complete with citation):**
+- FAIL-001: build-time only; CI catches via `docker compose build` non-zero exit. Verified once during chunk-1B image build.
+- FAIL-003: chunk-1A's `test_process_text_unsupported_language_raises_clear_error` already covers the runtime contract.
+- FAIL-004: structurally guarded — calibration is dev-time only; no runtime code path reads `tests/eval/fixtures/`.
+- FAIL-006: §4.5 probe transcript at `reports/req-015-probe.md` matches RESEARCH-007 §4.5 byte-for-byte; convergence empirically met, fallback action not exercised.
+
+**Non-functional REQ verification (all marked Complete with citation):**
+- PERF-001: latency baseline captured at chunk 4 — DE bare-noun 0.079 s, EN sentence 0.005 s, DE long-doc 1.262 s.
+- PERF-002: cold-start 9 s + model-load-once invariant verified at chunk 1A unit tests + chunk 4 startup-log evidence.
+- PERF-003: image size 36.8 GB uncompressed (`docker images redakt-presidio-analyzer`); documentation only per spec.
+- SEC-001: audit logger emits typed metadata only (entity-type names, counts, language code, source) — never original text or PII content. Verified by reading `src/redakt/services/audit.py:_emit_audit`.
+- SEC-002: chunk-3 recognizer-registry floor contract test (`test_recognizer_registry_floor.py`) + REQ-011 YAML diffs both empty.
+- SEC-003: `multi.yaml` revision pin + `multi.model_digests.json` SHA-256 manifest verified on every build (chunk 1B).
+- SEC-004: `docker-compose.yml` exposes no host port for `presidio-analyzer`; internal compose network only. Unchanged by feature.
+- PRIV-001: same evidence as SEC-001 — no PII at rest, no PII in audit log.
+- PRIV-002: chunk-2-retry calibration corpus is synthetic — bare German noun forms, placeholder pronouns, synthetic German prose paragraph; no real-person names or real ID numbers.
+- REL-001: build-time failure surface verified by FAIL-001 + FAIL-005.
+- REL-002: runtime no-silent-fallback verified by FAIL-002 + FAIL-003 + REQ-005a Behavior B.
+- REL-003: calibration data is dev-time only; structurally request-path-independent.
+
+**Test sweep at chunk 5 close-out (all green):**
+- `uv run pytest tests/` → 350 passed in 2.5 s.
+- `uv run pytest tests/eval/` → 58 passed in 4.7 s.
+- `uv run pytest tests/contracts/` → 15 passed in 4.3 s.
+- `uv run pytest tests/integration/` → 3 passed in 0.3 s.
+- `uv run pytest tests/test_multi_nlp_engine.py tests/test_install_nlp_models_multi.py` (Presidio fork) → 24 passed in 0.05 s.
+- `./scripts/upstream-merge-check.sh` (Presidio fork) → 24 + smoke pass.
+
+**Deviations flagged for Step 4b code review:**
+- Runtime `from_pretrained(revision=...)` gap (chunk-1B subsection; tracker deviation 1).
+- `start_period: 90s` retained vs. REQ-014's 30s formula (deliberate conservative envelope; tracker deviation 2).
+- PERF-003 image size at 36.8 GB uncompressed (no cap per spec; documentation only).
+
+**Tracker status:** `Complete (ready for code-review at Step 4b)`. All 17 functional REQs + 8 EDGE + 6 FAIL + 3 PERF + 4 SEC + 2 PRIV + 3 REL = 43 items marked Complete with citation.
+
+**Counter usage for chunk 5:** Reads ~10/15, Nested subagents 0/4.

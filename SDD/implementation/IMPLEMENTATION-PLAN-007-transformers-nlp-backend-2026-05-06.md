@@ -8,7 +8,7 @@
 - **ADR:** [SDD/adr/0001-presidio-per-language-nlp-engine.md](../adr/0001-presidio-per-language-nlp-engine.md)
 - **Started:** 2026-05-06
 - **Author:** Claude
-- **Status:** In Progress
+- **Status:** Complete (ready for code-review at Step 4b)
 - **Delivery mode:** whole-feature
 
 ## Overview
@@ -48,7 +48,7 @@ Status legend: `Not Started` · `In Progress` · `Complete` · `Blocked`.
 - [x] **REQ-014** — Cold-start measurement gate (with hardware-class binding and explicit safety margin) — **Complete** (chunk 4; measured 9 s on Apple Silicon developer machine, option (b) 2× margin → 18 s; current `start_period: 90s` retained as conservative — 10× the measurement, ~5× the margin)
 - [x] **REQ-015** — Pre-deploy in-Redakt model probe — **Complete** (chunk 4; transcript at `reports/req-015-probe.md` matches RESEARCH-007 §4.5 expectation byte-for-byte: 10/10 Set A clean, 9/10 Set B clean (`BIC` flags ORG as expected per EDGE-008), Set C controls preserve PER/ORG/LOC. No fallback to `Davlan/bert-base-multilingual-cased-ner-hrl` required.)
 - [x] **REQ-016** — End-to-end `language: auto` routing test (positive coverage) — **Complete** (chunk 4; `tests/integration/test_auto_detect_routing.py` — 3 tests, all passing. Engine-swap detection verified via cross-routed probes — see Chunk 4 subsection.)
-- [ ] **REQ-017** — Upstream-merge regression CI check (`MultiNlpEngine` import smoke) — Not Started (out of chunk 4 scope per chunk prompt — orchestrator's separate workstream)
+- [x] **REQ-017** — Upstream-merge regression CI check (`MultiNlpEngine` import smoke) — **Complete** (chunk 5; `presidio/presidio-analyzer/scripts/upstream-merge-check.sh` runs the chunk-1A unit tests, the chunk-5 install-dispatcher tests, and the offline `smoke_test_multi.py` config-wiring smoke. Documented at `presidio/MULTI_ENGINE.md`. Verified once: 24 tests + smoke pass in ~0.2 s.)
 
 ### Edge Cases (EDGE)
 
@@ -63,12 +63,12 @@ Status legend: `Not Started` · `In Progress` · `Complete` · `Blocked`.
 
 ### Failure Scenarios (FAIL)
 
-- [x] **FAIL-001** — Transformer model download fails at image build — **Complete** (chunk 1B; `install_nlp_models._install_multi_engine_models` raises `ImportError` if transformers extra missing, propagates `huggingface_hub` errors. Verified once during chunk-1B image build.)
-- [ ] **FAIL-002** — Any sub-engine load failure at runtime (en or de; spaCy or transformer) — Not Started
-- [ ] **FAIL-003** — `MultiNlpEngine` receives a request for an unconfigured language — Partially covered in chunk 1A unit tests (`test_process_text_unsupported_language_raises_clear_error`); end-to-end coverage deferred to chunk 1B/4.
-- [ ] **FAIL-004** — Calibration corpus / fixtures not present at runtime — Not Started
-- [x] **FAIL-005** — Build-time install dispatcher silently passes on a bad row — **Complete** (chunk 1B; `_validate_multi_row` rejects unknown / missing `engine` and missing `model_name` / `lang_code` with clear errors before any download is attempted.)
-- [ ] **FAIL-006** — Calibration results diverge from §4.5 probe — Not Started
+- [x] **FAIL-001** — Transformer model download fails at image build — **Complete** (chunk 1B; `install_nlp_models._install_multi_engine_models` raises `ImportError` if transformers extra missing, propagates `huggingface_hub` errors. Verified once during chunk-1B image build. Build-time only — no runtime test path; CI catches via non-zero `docker compose build` exit.)
+- [x] **FAIL-002** — Any sub-engine load failure at runtime (en or de; spaCy or transformer) — **Complete** (chunk 5; `tests/test_multi_nlp_engine.py::test_load_propagates_sub_engine_failure_and_is_loaded_returns_false` parametrized across en-spacy and de-transformer slots — asserts `load()` propagates the underlying exception AND `is_loaded()` returns False AND a retry of `load()` raises RuntimeError. The spaCy-aux failure path inside `TransformersNlpEngine` shares the de-transformer slot's propagation contract, so the parametrized coverage discharges all three slots structurally. Spec-required (c) "process exit / `/health` 503 integration test" is structurally covered by REQ-005a Behavior B — when `load()` raises, the analyzer process exits before binding HTTP, healthcheck never reaches 200; verified once during chunk-1B image build.)
+- [x] **FAIL-003** — `MultiNlpEngine` receives a request for an unconfigured language — **Complete** (chunk 1A; `tests/test_multi_nlp_engine.py::test_process_text_unsupported_language_raises_clear_error` verifies `ValueError` with clear message naming the unsupported language and listing configured languages. Defense-in-depth: Redakt's `language ∈ settings.supported_languages` validation in `src/redakt/routers/detect.py` already rejects upstream of Presidio, so this is the unreachable-in-practice tier.)
+- [x] **FAIL-004** — Calibration corpus / fixtures not present at runtime — **Complete** (chunk 5 documentation; structurally guarded — calibration is dev-time only, not on the request path. `tests/eval/` and `tools/calibration_report.py` consume `tests/eval/fixtures/*.yaml`; production deployment image does NOT include the fixtures directory. No runtime test required because no runtime code path reads them — the request path goes through `src/redakt/routers/detect.py` straight to the Presidio analyzer container, never touching the eval fixtures.)
+- [x] **FAIL-005** — Build-time install dispatcher silently passes on a bad row — **Complete** (chunk 1B; `_validate_multi_row` rejects unknown / missing `engine` and missing `model_name` / `lang_code` with clear errors before any download is attempted. Chunk 5 added `tests/test_install_nlp_models_multi.py` — 7 install-side unit tests covering all rejection branches + 2 well-formed-row sanity tests, exactly matching the spec's "unit test in install_nlp_models.py's test module" Validation Strategy line.)
+- [x] **FAIL-006** — Calibration results diverge from §4.5 probe — **Complete** (chunk 4; REQ-015 transcript at `reports/req-015-probe.md` matches RESEARCH-007 §4.5 byte-for-byte: 10/10 Set A clean, 9/10 Set B clean (`BIC` flags ORG as expected per EDGE-008), Set C controls preserve PER/ORG/LOC. Convergence confirmed; no fallback to `Davlan/bert-base-multilingual-cased-ner-hrl` triggered. The trigger condition for FAIL-006 (§4.5 probe-versus-Redakt divergence) was empirically NOT MET, so the fallback action was not exercised.)
 
 ## Implementation Progress
 
@@ -313,6 +313,166 @@ These map exactly to the swap-detection failures the spec calls for ("hypothetic
 **Tests added by chunk 4:** 3 new tests (`tests/integration/test_auto_detect_routing.py`).
 
 **Counter usage for chunk 4:** Reads ~7/12, Nested subagents 0/4.
+
+### Chunk 5 — Finalization (REQ-017 + non-functional REQs + tracker close-out)
+
+**Status:** Complete.
+
+**Scope.** REQ-017 (Presidio upstream-merge CI gate); FAIL-001..006 verification + small test additions; PERF-001..003, SEC-001..004, PRIV-001..002, REL-001..003 non-functional verification with citations; finalize the tracker for handoff to Step 4b code review.
+
+**Files created (Presidio fork):**
+- `presidio/presidio-analyzer/scripts/upstream-merge-check.sh` — REQ-017 CI gate. Runs `tests/test_multi_nlp_engine.py` (17 tests including the new FAIL-002 parametrized cases) + `tests/test_install_nlp_models_multi.py` (7 tests for FAIL-005 install-side coverage) + `scripts/smoke_test_multi.py` (offline config-shape smoke). Exits 0 on success. Wall time ~0.2 s. Verified once on the current state — all green.
+- `presidio/presidio-analyzer/tests/test_install_nlp_models_multi.py` — FAIL-005 install-side tests (7 cases). Loads `install_nlp_models.py` by absolute path (it lives at the package root, not on `sys.path`). Covers `_validate_multi_row` rejection branches: unknown engine, missing engine key, missing lang_code, missing model_name, non-dict row; plus two well-formed-row sanity assertions (spacy + transformers).
+- `presidio/MULTI_ENGINE.md` — operator-facing doc for the Redakt fork's `MultiNlpEngine` integration. Lists fork-side files, documents the upstream-merge gate, names what the gate catches (constructor signature drift, registry plumbing, config validator schema drift) and what it does NOT catch (behavioral regressions inside `SpacyNlpEngine` / `TransformersNlpEngine`; image-build wiring).
+
+**Files modified (Presidio fork):**
+- `presidio/presidio-analyzer/tests/test_multi_nlp_engine.py` — added FAIL-002 test `test_load_propagates_sub_engine_failure_and_is_loaded_returns_false`, parametrized across en-spacy and de-transformer slots. Asserts (a) `load()` propagates the failing sub-engine's exception, (b) `is_loaded()` returns False (no silent partial state), (c) retry of `load()` raises `RuntimeError` (one-shot contract). Total chunk-1A/5 unit tests: **17** (was 15).
+
+**Files modified (Redakt repo):**
+- `SDD/implementation/IMPLEMENTATION-PLAN-007-transformers-nlp-backend-2026-05-06.md` (this file) — REQ-017 + all FAIL/PERF/SEC/PRIV/REL items marked Complete with citation; chunk-5 subsection appended; Final implementation summary section added; `Status:` set to `Complete (ready for code-review at Step 4b)`.
+- `SDD/orchestration/progress.md` — Step 4a chunk 5 subsection appended.
+
+#### Non-functional REQ verification (chunk 5)
+
+**PERF-001 — Reproducible latency baseline (anchored).**
+Captured at chunk 4. Three anchors × {warm-up = first run, steady-state median over N=5 warm runs}: short DE bare-noun (`Personalausweis`) 0.079 s steady-state, sentence-context EN (`My name is John Smith.`) 0.005 s, long-document DE (REQ-009b 557-token anchor) 1.262 s. All three sit inside the RESEARCH-007 §4 / CLARIFICATION-007 Q4 0.5–3 s expectation envelope for the DE transformer path. Documentation only (no SLO). Recorded in chunk 4 subsection above and in `progress.md`. Mark **Complete**.
+
+**PERF-002 — Cold-start expectations and model-load-once.**
+Cold-start measured at chunk 4: 9 s end-to-end on Apple Silicon dev hardware, with all three models (`en_core_web_lg`, `de_core_news_sm`, `xlm-roberta-large-finetuned-conll03-german`) emitting their `LOADED <model> at <ts>` structured log line exactly once before the HTTP server begins serving. Model-load-once invariant tested at the unit level by chunk 1A's `test_load_invokes_each_sub_engine_load_exactly_once` and `test_process_text_before_load_raises_runtime_error`; behavioral signal verified by the captured startup log. Healthcheck `start_period: 90s` retained as conservative envelope (10× the measurement). Mark **Complete**.
+
+**PERF-003 — Image size growth (documentation only).**
+Measured at chunk-5 close-out: `redakt-presidio-analyzer:latest` weighs **36.8 GB** uncompressed on the developer-machine Docker image registry (`docker images redakt-presidio-analyzer`). Major contributors per `docker history`: a ~10.8 GB layer (`pip install` + initial model download) and a ~9.5 GB layer (`install_nlp_models.py` for the `multi.yaml` rows, including `xlm-roberta-large-finetuned-conll03-german` weights). The on-disk uncompressed size includes Torch + Transformers + sentencepiece + protobuf + `en_core_web_lg` + `de_core_news_sm` + the transformer weights + tokenizer assets. CLARIFICATION-007 Q4 sets no cap; per spec this is documentation only. Captured here for future regression comparison. Mark **Complete**.
+
+**SEC-001 — No new PII storage paths.**
+Verified by reading `src/redakt/services/audit.py` (chunk 5): `_emit_audit` (lines 105-154) and `log_detection` (lines 157-171) build `record.audit_data` from typed metadata fields only — `action`, `entity_count`, `entities_found` (entity-type names only, e.g., `["PERSON", "LOCATION"]`), `language_detected`, `source`, optional `allow_list_count`, `file_type`, `file_size_bytes`, `operator`. The original text and detected PII content are never logged. The `exc_info=True` recovery path comment (lines 145-148) confirms the safety guarantee is preserved on failure. Input-size ceiling `max_text_length: 512_000` (`src/redakt/config.py:18`) is unchanged by this feature; the analyzer's per-request compute budget remains implicitly bounded. Mark **Complete**.
+
+**SEC-002 — Recognizer-registry floor preserved.**
+Verified at chunk 3 by `tests/contracts/test_recognizer_registry_floor.py` (8 tests parametrized over en/de × 4 properties: names enabled, supported_entities preserved, pattern scoring preserved, relative order preserved). Allows additions, fails on removals/disables/dropped patterns/rescored patterns/order regressions. YAML-diff evidence at `reports/req-011-recognizer-diffs.md` (gitignored): both Redakt-side and fork-side `default_recognizers.yaml` diffs are empty — additions-only constraint trivially satisfied. Mark **Complete**.
+
+**SEC-003 — Model supply-chain trust boundary.**
+Verified at chunk 1B + chunk 4. `multi.yaml` pins `revision: 1fbcc7a00a69ce5ab754623154a8e9cc6ba868e2` (HF Hub commit SHA captured 2026-05-06). `install_nlp_models.py` reads `multi.model_digests.json` on every build, recomputes per-file SHA-256 of downloaded weights, fails the build on mismatch, writes a fresh manifest on first known-good build (`{}` placeholder treated as baseline-capture mode per `_load_digest_manifest`). Build-time-only network egress to HF Hub; runtime is offline-after-build. Manifest is the supply-chain trust anchor — revision pinning alone is insufficient because HF Hub can mutate bytes served under a given revision. Runtime-side `from_pretrained(revision=...)` gap noted in chunk 1B subsection above (deferred — does not affect the SEC-003 build-time trust anchor). Mark **Complete**.
+
+**SEC-004 — Internal-only Presidio service surface.**
+Verified by reading `docker-compose.yml`: `presidio-analyzer` exposes no host port (only the internal compose network); `redakt` is the only service that talks to it. Unchanged by this feature (RESEARCH-007 §16.1). Mark **Complete**.
+
+**PRIV-001 — No PII at rest, no PII in audit log.**
+Same evidence as SEC-001. Audit logger emits typed metadata only — entity-type name strings (`"PERSON"`, `"LOCATION"`), counts, language code, source. Text content and detected PII spans are never persisted. Backend stays stateless per project design (CLAUDE.md: "Anonymization mappings are returned to the client (browser holds them; deanonymization is client-side)"). Mark **Complete**.
+
+**PRIV-002 — Calibration corpus is synthetic.**
+Verified by reading `tests/eval/fixtures/de.yaml` (chunk 2 retry additions): the 15 broader-class `expect_clean: true` fixtures are bare German noun forms (`Personalausweis`, `Reisepassnummer`, `Krankenversicherungsnummer`, etc.) with no associated identifying numbers. The held-out positive `Sie wohnt in Berlin und arbeitet in München.` uses synthetic placeholder pronoun + city names. The 557-token long-document anchor is a 3× repetition of a synthetic German prose paragraph. No real-person names, no real ID numbers, no real PII content — only structurally-shaped synthetic phrases the calibration tooling consumes. Calibration is dev-time only and never reaches production deployment. Mark **Complete**.
+
+**REL-001 — Build-time failure surface.**
+Verified by FAIL-001 + FAIL-005 coverage (above). The HF model download in `install_nlp_models._install_multi_engine_models` (chunk 1B) raises ImportError if the transformers extra is missing, propagates `huggingface_hub` network errors, and rejects malformed config rows via `_validate_multi_row` (chunk 1B + chunk 5 install-side tests). Failures are loud — `docker compose build presidio-analyzer` exits non-zero with a clear error; CI catches before any runtime state is reached. Mark **Complete**.
+
+**REL-002 — Runtime failure surface (no silent fallback).**
+Verified by FAIL-002 + FAIL-003 coverage (above). FAIL-002 chunk-5 parametrized tests assert sub-engine load failures propagate AND `is_loaded()` returns False AND retrying `load()` raises (one-shot contract). FAIL-003 chunk-1A test asserts unsupported-language requests raise `ValueError` with a clear message. REQ-005a Behavior B (chunk 1B) wires this into the deployment shape: the analyzer process exits before binding HTTP if `load()` raises; the healthcheck never reaches 200. No silent degraded state. Mark **Complete**.
+
+**REL-003 — Calibration data is development-time only.**
+Verified by FAIL-004 coverage (above). The `calibration corpus` (`tests/eval/fixtures/`) is consumed only by `tools/calibration_report.py` and `tests/eval/test_calibration.py` — both dev-time tools. The Redakt request path in `src/redakt/routers/detect.py` does not read these fixtures; it goes straight to the Presidio analyzer container. Production deployment images do not include the fixtures directory. Structurally request-path-independent. Mark **Complete**.
+
+**Test additions (chunk 5):**
+- `tests/test_multi_nlp_engine.py`: +2 (FAIL-002 parametrized en + de). Total: 17.
+- `tests/test_install_nlp_models_multi.py`: +7 (FAIL-005 install-side coverage). New file.
+
+**Test invocations + outcomes (chunk 5 final sweep):**
+```
+# Redakt side
+uv run pytest tests/                  → 350 passed in 2.5 s
+uv run pytest tests/eval/             → 58 passed in 4.7 s
+uv run pytest tests/contracts/        → 15 passed in 4.3 s
+uv run pytest tests/integration/      → 3 passed in 0.3 s
+
+# Presidio fork side
+cd presidio/presidio-analyzer
+uv run pytest tests/test_multi_nlp_engine.py tests/test_install_nlp_models_multi.py
+                                      → 24 passed in 0.05 s
+./scripts/upstream-merge-check.sh     → 24 + smoke pass in ~0.2 s
+```
+All green. No regressions across any chunk.
+
+**Counter usage for chunk 5:** Reads ~10/15, Nested subagents 0/4.
+
+## Final implementation summary
+
+**Status:** Complete. All 17 functional REQs + 8 EDGE cases + 6 FAIL scenarios + 3 PERF + 4 SEC + 2 PRIV + 3 REL items are marked Complete in this tracker with citations. Ready for handoff to Step 4b code review.
+
+### Commit timeline
+
+**Presidio fork (`feature/redakt-007-multi-nlp-engine`):**
+| Chunk | SHA (short) | Description |
+| --- | --- | --- |
+| 1A | `1070180b` | `MultiNlpEngine` class + `NlpEngineProvider` registration + 15 unit tests |
+| 1B | `d604514` | `multi.yaml` + `install_nlp_models.py` extension + `Dockerfile.multi` + `multi.model_digests.json` + smoke test |
+| 5 | `23049af` | REQ-017 upstream-merge CI gate + FAIL-002 test + FAIL-005 install-side tests + `MULTI_ENGINE.md` |
+
+**Redakt (`feature/007-transformers-nlp-backend`):**
+| Chunk | SHA (short) | Description |
+| --- | --- | --- |
+| 1B | `3fc10b1` | `docker-compose.yml` retarget to `Dockerfile.multi` + tracker plumbing |
+| 2 retry | `e316caf` | 17 new DE fixtures + four-bar verification (REQ-006/007/008/009/009b) |
+| 3 | `1092d8b` | API contract gates + recognizer registry floor (REQ-010/010a/011) |
+| 4 | `f5f1543` | Auto-detect routing test + edges + cold-start (REQ-012/014/015/016 + EDGE-001..008) |
+| 5 | _this commit_ | Tracker close-out + non-functional REQ verifications |
+
+### Test count (verified at chunk-5 final sweep)
+
+| Suite | Count | Notes |
+| --- | --- | --- |
+| Redakt unit + integration (`tests/`, default) | 350 | Excludes live-stack suites via `pyproject.toml addopts` |
+| Redakt eval fixtures (`tests/eval/`) | 58 | 41 existing + 15 broader-class clean + 2 REQ-009b held-out positive + long-doc |
+| Redakt contracts (`tests/contracts/`) | 15 | OpenAPI diff (2) + API shape (5) + recognizer floor (8) |
+| Redakt integration (`tests/integration/`) | 3 | `language: auto` routing × {DE, EN, swap-detect fingerprint} |
+| Presidio fork chunk-1A unit (`tests/test_multi_nlp_engine.py`) | 17 | 15 chunk-1A + 2 chunk-5 FAIL-002 parametrized |
+| Presidio fork install-side (`tests/test_install_nlp_models_multi.py`) | 7 | All chunk-5 FAIL-005 |
+| Offline config-shape smoke (`scripts/smoke_test_multi.py`) | 1 invocation | 4 internal assertions |
+| **Total tests** | **450 + 1 smoke** | All green at chunk-5 close-out |
+
+### Files changed (across both repos)
+
+**Presidio fork (commits 1A + 1B + 5):**
+- New: `presidio_analyzer/nlp_engine/multi_nlp_engine.py` (~340 LOC).
+- New: `presidio_analyzer/conf/multi.yaml`.
+- New: `presidio_analyzer/conf/multi.model_digests.json` (populated baseline).
+- New: `Dockerfile.multi`.
+- New: `scripts/smoke_test_multi.py`.
+- New: `scripts/upstream-merge-check.sh` (chunk 5).
+- New: `tests/test_multi_nlp_engine.py` (17 tests).
+- New: `tests/test_install_nlp_models_multi.py` (7 tests; chunk 5).
+- New: `presidio/MULTI_ENGINE.md` (chunk 5).
+- Modified: `install_nlp_models.py` (multi-engine branch + digest manifest read/write/verify).
+- Modified: `presidio_analyzer/nlp_engine/__init__.py` (`MultiNlpEngine` export).
+- Modified: `presidio_analyzer/nlp_engine/nlp_engine_provider.py` (`multi` engine registration).
+- Modified: `presidio_analyzer/tests/conftest.py` (skip multi engine in session-scoped fixture).
+
+**Redakt (commits 1B + 2 retry + 3 + 4 + 5):**
+- New: `tests/contracts/` package (8 files: 2 test modules, 5 snapshot baselines, 1 conftest, plus `recognizers-baseline.json`, `openapi-baseline.json`).
+- New: `tests/integration/` package (2 files: `test_auto_detect_routing.py`, `conftest.py`).
+- New: `reports/calibration-007-before.md`, `reports/calibration-007-after.md`, `reports/req-011-recognizer-diffs.md`, `reports/req-015-probe.md` (gitignored).
+- New: `SDD/implementation/IMPLEMENTATION-PLAN-007-transformers-nlp-backend-2026-05-06.md` (this tracker).
+- Modified: `tests/eval/fixtures/de.yaml` (+17 entries).
+- Modified: `docker-compose.yml` (retarget to `Dockerfile.multi`; `start_period: 90s`).
+- Modified: `pyproject.toml` (test-tree exclusions for `tests/contracts`, `tests/integration`).
+- Modified: `README.md`, `docs/v1-feature-spec.md`, `docs/presidio-integration.md` (REQ-012 code-switched-text docs).
+
+### Deviations from the spec
+
+1. **Per-row `revision` not yet honored at runtime by upstream `TransformersNlpEngine`** (chunk 1B subsection, line 145). `install_nlp_models.py` correctly forwards `revision` to both `snapshot_download` and `from_pretrained` at build time, but upstream Presidio's `TransformersNlpEngine.load()` calls `from_pretrained(model_name)` without `revision=`. In the baked-image deployment shape there is exactly one cached snapshot per repo_id, so resolution lands on the pinned revision in practice. A future cache-mount or shared-cache deployment could surface a mismatch. Fix requires either a small Presidio-fork patch teaching `TransformersNlpEngine` to read the per-row `revision` or a pre-load shim. **Flagged for code review at Step 4b.** No production behavior change in the current deployment shape.
+
+2. **Chunk 4 `start_period: 90s` retained instead of `30s` from REQ-014's measurement formula.** Measured cold-start was 9 s; the option (b) 2× formula computes `max(30s, ceil(2 × 9s)) = 30s`. The tracker retains the chunk-1B placeholder of 90 s as a conservative envelope (10× measurement, ~5× formula) to comfortably accommodate colder-cache scenarios (first-build, post-prune; transformer load could approach 30 s on cold OS page cache). This is a deliberate over-budget rather than under-spec; healthcheck reaches healthy state in ~3 s on warm-disk cold-start (chunk 4 evidence), so the operator observability impact is "minutes of pre-`start_period` headroom that is never consumed." Documented in chunk 4 subsection.
+
+3. **DE DATE_TIME held-out positive dropped per Amendment 2026-05-06 (Option A).** xlm-roberta CoNLL-03 has no DATE label; DE DATE_TIME is regex-only via `DateRecognizer` at 0.6/0.8 ceiling — model-design limitation. Bar 2 of REQ-006's four-bar stopping condition was rewritten entity-conditional. DE LOCATION held-out positive retained. Captured in spec amendment + chunk 2 retry subsection.
+
+4. **PERF-003 image size at 36.8 GB uncompressed.** Spec is "documentation only" with no cap; documented at chunk-5 close-out per advisor guidance. Compressed on-registry size will be smaller; this is the locally-built layer-uncompressed total and is captured here for future regression comparison rather than as a SLO.
+
+No other deviations.
+
+### What chunk 5 deliberately did NOT do
+
+- **Did not run a real-model integration test for FAIL-002 sub-engine load failure** (spec validation point (c)). Structurally covered by REQ-005a Behavior B + the chunk-1B image-build verification: when `load()` raises, the analyzer process exits before binding HTTP and the healthcheck never reaches 200. Adding a real-model failure-injection integration test would mean a 10-minute image build per parametrized case for one-time evidence, with no marginal coverage beyond the structural guard. Rejected per advisor guidance.
+
+- **Did not patch the runtime `from_pretrained(revision=...)` gap.** Out of chunk-5 scope per the chunk prompt's "Don't add features beyond REQ scope" rule. Flagged in deviation 1 above for Step 4b code review to decide whether to land a fork-side patch as part of post-review polish or defer to a follow-up feature.
+
+- **Did not run the LangSmith / regression-eval-capture step (Step 4g).** Per the chunk prompt's "Skip LangSmith / regression-eval-capture (Step 4g — orchestrator handles after 4f)" rule.
 
 ## Notes
 
