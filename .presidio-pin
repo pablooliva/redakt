@@ -19,11 +19,13 @@
 
 feature: 007 (transformers-nlp-backend)
 branch:  main
-commits: 1070180..4573133
+commits: 1070180..15ceffd
 notes:   MultiNlpEngine + multi.yaml + Dockerfile.multi + revision pin
          (chunks 1A, 1B, 5, 4c). 4e adds populated digest manifest +
          tamper test + atomic manifest write + retry-after-failure +
          schema validator annotation. Originally developed on a feature
          branch (`feature/redakt-007-multi-nlp-engine`) on a separate
          machine; that branch was consumed into `main` and not retained
-         on origin. SHA range is the authoritative anchor.
+         on origin. 15ceffd is post-completion image-slim (-51.7%):
+         CPU-only torch + HF Hub alt-framework prune + manifest
+         re-baseline. SHA range is the authoritative anchor.
