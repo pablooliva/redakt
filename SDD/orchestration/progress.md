@@ -430,3 +430,26 @@ Spawned 2026-05-06 12:39:19. Counter file: `SDD/orchestration/counters/4a-1B-com
 - REQ-013 HF model integrity — Complete (revision pin wired, manifest read/write/verify implemented, baseline placeholder committed; first successful chunk-2 build populates the baseline; verification mode active on every subsequent build).
 
 **Note for chunk 2:** image build cached through the 13 compute steps; chunk 2's first build attempt will tag the image without re-downloading models (HF and spaCy weights are already pulled into the BuildKit cache by the chunk 1B partial build).
+
+## Awaiting Environment Decision
+
+**Trigger:** Docker BuildKit step #19 "exporting layers" hung 30+ minutes with no log progress on the `/Volumes/Crucial Data/...` external-drive virtiofs mount. Build's compute steps (1–18) all completed successfully — models downloaded with revision pinned, digest manifest baseline written. Only the layer flush to image store stalled. NOT a code defect; environmental.
+
+**State at halt:**
+- Chunk 1A: complete and committed (Presidio `1070180b`, Redakt `0c08ed2`).
+- Chunk 1B: partial-commit complete (Presidio `d604514`, Redakt `3fc10b1`). REQ-001/002/003/004/005/005a/013 marked Complete in IMPLEMENTATION-PLAN. Image-build tagging deferred.
+- Chunks 2–5 NOT STARTED.
+
+**Compaction file:** `SDD/orchestration/compacted/implementation-compacted-2026-05-06_12-44-58.md` — full state + resume guidance.
+
+**Resume options (Pablo's call — autonomous mode cannot resolve):**
+
+1. **(Recommended)** Move the project off the external drive (e.g., `~/Code/redakt/`) and rebuild. Virtiofs over `/Volumes/...` is the root cause; internal SSD mounts complete layer export in seconds for a ~3 GB image. Then `/sdd-flow continue` from a fresh session.
+
+2. Run `docker compose build presidio-analyzer` overnight on the current path. BuildKit's compute steps are already cached; only layer flush remains. Then `/sdd-flow continue`.
+
+3. Bypass Docker for chunk 2 only: modify `tools/calibration_report.py` to accept an in-process `AnalyzerEngine` instance. Adds scope outside the SPEC; would need a spec addendum REQ. **Not preferred.**
+
+**Do NOT prune BuildKit cache before resuming** — it holds the ~3 GB transformer download + spaCy models. Cache reset = redownload from HF Hub.
+
+Resuming via any path lands the orchestrator at chunk 2 (REQ-006/007/008 calibration). Calibration's four-bar stopping condition is mechanically defined (negative + held-out positive + score-distribution annotation + reproducibility ±0.05) — autonomously executable once the stack runs.
