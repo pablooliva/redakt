@@ -18,17 +18,22 @@ services:
         condition: service_healthy
 
   presidio-analyzer:
+    # Mirrors docker-compose.yml: Dockerfile.multi + MultiNlpEngine
+    # (en spaCy + de transformer). Required for the German PII recall
+    # SDD-007 was built to deliver — plain spaCy multilingual misclassifies
+    # German common nouns as PERSON.
     build:
       context: ./presidio/presidio-analyzer
+      dockerfile: Dockerfile.multi
       args:
-        - NLP_CONF_FILE=presidio_analyzer/conf/spacy_multilingual.yaml
+        - NLP_CONF_FILE=presidio_analyzer/conf/multi.yaml
     environment:
       - PORT=5001
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:5001/health"]
-      interval: 10s
+      interval: 15s
       timeout: 5s
-      retries: 10
+      retries: 20
       start_period: 30s
 
   presidio-anonymizer:

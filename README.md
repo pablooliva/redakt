@@ -69,6 +69,9 @@ weights + spaCy lemma surfaces are duplicated across `linux/amd64` and
 DOCKER_DEFAULT_PLATFORM=linux/arm64 docker compose up --build
 # or, on x86_64 hosts:
 DOCKER_DEFAULT_PLATFORM=linux/amd64 docker compose up --build
+
+# Prod stack (uses docker-compose.prod.yml; same single-arch guidance applies):
+DOCKER_DEFAULT_PLATFORM=linux/arm64 docker compose -f docker-compose.prod.yml up --build
 ```
 
 Single-arch builds typically land at ~10–15 GB uncompressed. Spec ref:
