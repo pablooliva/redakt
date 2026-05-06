@@ -5,3 +5,4 @@ scratch.md
 .env.local
 reports/
 .claude/
+.idea
