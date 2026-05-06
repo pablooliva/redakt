@@ -149,3 +149,194 @@ Resolution highlights:
 **Resolution: A (live model probe).** Setup took ~5 minutes (uv-on-the-fly install of transformers/torch/sentencepiece, ~3 GB of model downloads); ran in foreground; total compute time including all three candidates ~10 minutes. Temp probe script discarded; results captured verbatim in RESEARCH-007 §4.5.
 
 **No code changes, no tests, no git operations performed.** Research-document and ADR text fixes only. Final counter: Reads 9/10, Nested subagents 0/4. Ready for /sdd:commit at Step 2e.
+
+## Step 3a — Planning subagent (done)
+
+Spawned 2026-05-06 10:55:24. Counter file: `SDD/orchestration/counters/3a-1-2026-05-06_10-55-24.md`. Final counter: Reads 8/10, Nested subagents 0/4. No advisor consultation needed — research foundation, ADR, and clarification are mutually consistent and the planning prompt's REQ scaffolding is exhaustive.
+
+**Deliverable:** `SDD/requirements/SPEC-007-transformers-nlp-backend.md`.
+
+**Frontmatter (per planning prompt):**
+- `review_panel: [security, performance, privacy, reliability, module-depth]`
+- `eval_required: true`
+- `cross_cutting_decisions: [presidio_nlp_engine_per_language]`
+- `delivery_mode: whole-feature`
+
+**Counts:**
+- REQ-XXX: 15 (REQ-001..REQ-015) — covers `MultiNlpEngine` subclass, engine-name registration, `multi.yaml` config schema, `install_nlp_models.py` extension, docker-compose wiring, per-entity floor re-tune, global threshold-knob re-tune, calibration corpus expansion, 15 new `expect_clean: true` CI fixtures, API contract preservation, recognizer-registry floor preservation, code-switched-text documentation, HF revision pinning, cold-start measurement gate, pre-deploy in-Redakt model probe.
+- PERF-XXX: 3 (informational baselines, no SLO per CLARIFICATION-007 Q4).
+- SEC-XXX: 4 (no new PII storage paths, recognizer floor preserved, model supply-chain trust boundary, internal-only Presidio service).
+- PRIV-XXX: 2 (PII at-rest invariants and client-side mapping unchanged).
+- REL-XXX: 3 (build-time, runtime, calibration-data failure surfaces).
+- EDGE-XXX: 8 (code-switched, `broader class` bare nouns, common-noun + adjacent number, lingua mis-detect, PERSON-name-as-common-noun, long German text, empty text, defensible `BIC` ORG flag).
+- FAIL-XXX: 6 (model-download failure, auxiliary spaCy load failure, unconfigured-language request, calibration-data missing at runtime, install-dispatcher silent pass, in-Redakt probe divergence from §4.5).
+- MODULE-XXX: 8 (MODULE-001 `MultiNlpEngine` deep; MODULE-002 multi-engine config schema shallow-justified; MODULE-003 install dispatcher extension medium-deep; MODULE-004 calibration corpus shallow-justified; MODULE-005 eval fixtures + harness medium; MODULE-006 threshold defaults shallow-justified; MODULE-007 docker/compose wiring shallow-justified; MODULE-008 documentation shallow-justified).
+
+**Glossary alignment:** every glossary term used in canonical form — `MultiNlpEngine`, `NLP engine`, `country recognizer`, `calibration corpus`, `broader class`, `per-entity score floor`, `graded scores`, `asymmetric routing`, `language auto-detect path`, `detection-set non-regression`, `issubset assertion`, `default score threshold`, `low_score_entity_names / low_confidence_score_multiplier`, `operator`. No synonyms introduced.
+
+**Hard rules satisfied:**
+- Every REQ/EDGE/FAIL maps to ≥ 1 MODULE via `Spec refs`.
+- All shallow modules (MODULE-002, MODULE-004, MODULE-006, MODULE-007, MODULE-008) carry an explicit "Justification for shallow" paragraph.
+- Frontmatter values exact match per prompt.
+- `delivery_mode: whole-feature` — no per-slice section authored (skipped per prompt).
+
+**No code changes, no tests, no git operations performed.** Spec-write only. Ready for the spec-review-panel (Step 3b) and the per-cross-cutting-decision skill check that will detect ADR 0001 already covers `presidio_nlp_engine_per_language` and skip duplicate ADR work.
+
+### Step 3a — Planning-complete
+
+Spawned 2026-05-06 11:04:28. Counter file: `SDD/orchestration/counters/3a-2-2026-05-06_11-04-28.md`. Final counter: Reads 5/10, Nested subagents 0/4. No advisor consultation needed — checklist validation was deterministic against the spec text.
+
+**Validation outcome:** PASS with two minor in-place fixes.
+
+Checklist gaps fixed:
+- **Header metadata:** `**Date:** 2026-05-06` lacked the project's conventional `Creation Date:` and `Author:` fields (cf. SPEC-002 convention). Replaced with `**Creation Date:** 2026-05-06` and added `**Author:** Claude (with Pablo)`.
+- **Stakeholder validation paragraph:** Research Foundation section had no explicit stakeholder-validation summary. Added one sentence in §Research Foundation explicitly identifying Pablo as the `operator` (combined Product + Engineering + end-user role per CLARIFICATION-007) and marking Support NA with rationale (internal tool, no external support channel).
+
+**Traceability matrix** (REQ/EDGE/FAIL/PERF/SEC/PRIV/REL → MODULE) verified by enumeration: every one of 15 REQ + 8 EDGE + 6 FAIL + 3 PERF + 4 SEC + 2 PRIV + 3 REL identifiers appears in at least one MODULE-XXX `Spec refs:` line. No gaps.
+
+**Other checklist items confirmed in-place without edits:** Modules section (8 modules, all with Public Interface / Hides / Risk / Spec refs; shallow modules carry "Justification for shallow"); Delivery Slices section correctly OMITTED per `delivery_mode: whole-feature`; Validation Strategy populates Unit / Integration / Edge Case / Performance / Manual; Implementation Notes carries suggested approach + delegation guidance + critical implementation notes + `<40%` context budget mention.
+
+**Glossary delta:** updated with **2 new terms** — `expect_clean fixture` (SPEC-007 REQ-009, MODULE-005; cited test_calibration.py:46-50 + RESEARCH-007 §8.2), `multi engine name` (SPEC-007 REQ-002/003/004, MODULE-002; cited RESEARCH-007 §3.3 Option C). `MultiNlpEngine` is already canonical via the existing `NLP engine` entry (line 13 already names it as the fourth implementation); no rename needed. No contradictions with prior entries.
+
+Planning phase complete. SPEC-007-transformers-nlp-backend.md finalized. Glossary: updated with 2 new terms. Frontmatter values: review_panel=[security, performance, privacy, reliability, module-depth], eval_required=true, cross_cutting_decisions=[presidio_nlp_engine_per_language], delivery_mode=whole-feature. Ready for /spec-review-panel and /critical-review.
+
+### Step 3b — Spec-frontmatter ADR capture
+
+Spawned 2026-05-06 11:07:44. Counter file: `SDD/orchestration/counters/3b-1-2026-05-06_11-07-44.md`. Trigger C (sdd-flow planning hand-off, frontmatter-declared, autonomous mode).
+
+Topic `presidio_nlp_engine_per_language` already covered by ADR 0001 (Accepted, 2026-05-06). Duplicate detected per cross-cutting-adr skill anti-pattern #4. No new ADR written.
+
+Verification: read SPEC-007 frontmatter (`cross_cutting_decisions: [presidio_nlp_engine_per_language]`) and `SDD/adr/0001-presidio-per-language-nlp-engine.md` — its Status is Accepted, its title and Decision section explicitly establish per-language engine routing (English `SpacyNlpEngine` + `en_core_web_lg`; German `TransformersNlpEngine` + `xlm-roberta-large-finetuned-conll03-german` via custom `MultiNlpEngine`), tags include `cross-cutting, nlp, presidio, pii-detection`. Topic match is unambiguous.
+
+No code changes, no new ADR file, no commits. ADR 0001 remains the single source of truth for this topic.
+
+### Step 3c — Spec review panel
+
+Spawned 2026-05-06 11:09:00. Counter file: `SDD/orchestration/counters/3c-1-2026-05-06_11-09-00.md`. Final counter: Reads 4/10, Nested subagents 0/6 (raised threshold per panel-review safety-net rule).
+
+**Deliverable:** `SDD/reviews/PANEL-SPEC-transformers-nlp-backend-20260506.md`.
+
+**Panel:** security, performance, privacy, reliability, module-depth (per-slice specialist 4.7 OMITTED — `delivery_mode: whole-feature`).
+
+**Severity counts:** HIGH=0, MEDIUM=4, LOW=6.
+
+**Verdict:** **REVISE BEFORE PROCEEDING** (4 MEDIUM, including one cross-specialist MEDIUM on cold-start / two-phase startup flagged by both Reliability and Performance).
+
+**Specialists with findings:** Security (1 MEDIUM + 2 LOW), Performance (1 MEDIUM + 2 LOW), Reliability (1 MEDIUM + 2 LOW). **Specialists with no findings:** Privacy, Module Depth (Module Depth folded one observation into Reliability).
+
+**MEDIUM findings (must address before implementation):**
+1. REQ-013 HF model integrity: pin artifact digest, not just revision; commit to YAML `revision` key (Security).
+2. Two-phase startup contract: wire `/health` 200 to `MultiNlpEngine.is_loaded()` for all languages; generalize FAIL-002 (Reliability).
+3. REQ-014 cold-start measurement: deployment-target hardware or 2× safety margin; bind PERF-001 latency baseline to specific calibration phrases (Performance).
+4. Model-load-once invariant: state explicitly that `process_text` does not trigger model load on request path (Performance).
+
+**Execution note:** This environment did not expose a `Task` / general-purpose-subagent spawning tool, so each specialist was executed sequentially within the orchestrator's context using verbatim specialist briefs as fresh frames rather than nested subagent spawns. Generator-evaluator separation is preserved at the spec-author level (the spec was authored in Step 3a by a different subagent instance), but not at the per-specialist level. Documented in the panel deliverable's Panel Metadata section.
+
+No code changes, no commits. Ready for `/critical-review` or proceed to address findings before implementation.
+
+## Step 3c — Panel Review Iterations
+
+### Iteration 1 (2026-05-06 11:09)
+- HIGH: 0
+- MEDIUM: 4 (incl. one cross-domain Performance+Reliability)
+- LOW: 6
+- Verdict: REVISE BEFORE PROCEEDING
+- Panel review: `SDD/reviews/PANEL-SPEC-transformers-nlp-backend-20260506.md`
+- Action: spawn fix subagent for HIGH+MEDIUM only; LOW deferred to 3e (combined with critical review).
+
+### Step 3c iteration 1 fix
+
+Spawned 2026-05-06 11:14:33. Counter file: `SDD/orchestration/counters/3c-fix-1-2026-05-06_11-14-33.md`. Final counter: Reads 3/10, Nested subagents 0/4.
+
+**Deliverable:** Updated `SDD/requirements/SPEC-007-transformers-nlp-backend.md` and `SDD/reviews/PANEL-SPEC-transformers-nlp-backend-20260506.md` (Findings Addressed section appended).
+
+**MEDIUM findings resolved (4/4):**
+
+1. **REQ-013 HF model integrity (Security MEDIUM):** REQ-013 rewritten to commit declaratively to a YAML `revision` key (function-arg-only path rejected) AND require an artifact-level SHA-256 digest manifest at `presidio/.../conf/multi.model_digests.json` recomputed and verified on every build. SEC-003 updated to name the manifest as the supply-chain trust anchor. Subsumes the related LOW "pinning mechanism choice deferred."
+
+2. **Two-phase startup contract (Reliability MEDIUM):** New REQ-005a wires `/health` 200 strictly to `MultiNlpEngine.is_loaded() == True` for ALL languages, requires non-zero process exit on any sub-engine load failure, no partial-load 200. FAIL-002 generalized from `de_core_news_sm`-only to "any sub-engine load failure (en or de; spaCy or transformer)" with 5 enumerated trigger cases and parametrized unit tests. MODULE-001 Hides clarified to state `load()` + `is_loaded()` guarantee atomic two-phase startup. Subsumes the related LOW "asymmetric load failure modes."
+
+3. **REQ-014 cold-start measurement (Performance MEDIUM):** REQ-014 rewritten to require either (a) deployment-target hardware class with `1.3×` margin or (b) developer-class machine with `2×` safety margin; `start_period = max(30s, ceil(margin × measured))`. Implementation report must record the option, hardware description, and arithmetic. PERF-001 latency baseline bound to three specific calibration anchors (short bare-noun, sentence-context PII, long-document >500 tokens) for reproducible regression detection.
+
+4. **Model-load-once invariant (Performance MEDIUM, structural):** REQ-001 extended with explicit invariant — all sub-engine artifacts loaded exactly once during startup; `process_text` / `process_batch` MUST NOT trigger model load on request path; calling `process_text` before `load()` raises (no lazy-load). New acceptance tests required (load-call-count assertion via patched loaders; process-before-load error path). PERF-002 cross-references the invariant.
+
+**Spec sections changed:** REQ-001 (extended), REQ-005a (new), REQ-013 (rewritten), REQ-014 (rewritten), PERF-001 (rewritten), PERF-002 (rewritten), SEC-003 (rewritten), FAIL-002 (rewritten/generalized), MODULE-001 Hides + Spec refs (clarified), MODULE-007 Spec refs (REQ-005a added).
+
+**LOW findings (6):** deferred to Step 3e per orchestrator plan; not addressed here.
+
+No code changes, no commits. Ready for re-review (Step 3c iteration 2 or, if iteration cap reached, proceed with documented LOW deferrals to 3e).
+
+### Step 3c — Panel review iteration 2
+
+Spawned 2026-05-06 11:20:04. Counter file: `SDD/orchestration/counters/3c-2-2026-05-06_11-20-04.md`. Final counter: Reads 4/10, Nested subagents 0/6.
+
+**Deliverable:** `SDD/reviews/PANEL-SPEC-transformers-nlp-backend-20260506-iter2.md` (new file; iter 1 review preserved for audit trail).
+
+**Severity counts (iter 2):** HIGH=0, MEDIUM=0, LOW=2.
+
+**Iter 1 → iter 2 delta:** HIGH 0 → 0; MEDIUM 4 → 0; LOW 6 → 2 (iter 1 LOWs deferred to 3e and not re-evaluated; iter 2 LOWs are net-new from re-read).
+
+**Verdict:** **PROCEED**.
+
+**Iter 1 fix acceptance:** all 4 MEDIUM findings ACCEPTED with concrete, testable acceptance criteria — not placating wording. Two related iter 1 LOWs ("pinning mechanism choice deferred", "asymmetric load failure modes not enumerated") subsumed by the iter 1 fix.
+
+**Iter 2 LOW findings (net-new):**
+1. **Performance LOW** — PERF-001 long-document anchor referenced via EDGE-006 but not explicitly named as a fixture; consider adding a sub-REQ to REQ-009 explicitly creating the >500-token German fixture, or accept implicit backfill during step 6 calibration.
+2. **Module Depth LOW** — `multi.model_digests.json` ownership split implicitly between MODULE-002 (lives in `conf/`) and MODULE-003 (read+written by install dispatcher); name the manifest in MODULE-002's Public Interface and MODULE-003's Hides. Wording fix.
+3. **Security LOW (cosmetic)** — REQ-013 digest verification adds CPU cost proportional to weight file size on every build; acknowledgement-only, not a blocker.
+
+**Specialists with no findings (iter 2):** Privacy, Reliability.
+
+**Specialists with findings (iter 2):** Security (1 LOW cosmetic), Performance (1 LOW actionable), Module Depth (1 LOW wording).
+
+**Cross-specialist findings (iter 2):** 0. Iter 1's cross-specialist MEDIUM (cold-start / two-phase startup) is fully closed by REQ-005a + REQ-014 + REQ-001 model-load-once.
+
+**Execution note:** Same as iter 1 — no `Task` subagent spawning available; specialists applied sequentially with verbatim briefs. Generator-evaluator separation preserved at the spec-author level (spec authored in Step 3a; iter 1 fix produced in a separate context); iter 2 panel reviewer did not author the spec or the fix.
+
+No code changes, no commits. Verdict PROCEED → ready to advance to Step 3d (or 3e for combined critical-review fix if so planned).
+
+### Step 3d — Spec critical review
+
+Spawned 2026-05-06 11:25:20. Counter file: `SDD/orchestration/counters/3d-1-2026-05-06_11-25-20.md`. Final counter: Reads 6/10, Nested subagents 0/4.
+
+**Deliverable:** `SDD/reviews/CRITICAL-SPEC-transformers-nlp-backend-20260506.md` (new file).
+
+**Severity counts:** HIGH=0, MEDIUM=4, LOW=7.
+
+**Decision:** **PROCEED WITH FIXES**.
+
+**Top finding:** REQ-006/REQ-007 calibration loop has no defined stopping condition — threshold values are tuned against the very fixtures that decide pass (REQ-009), with no held-out positive-hit test for legitimate German LOCATION/DATE_TIME pass-through and no required record of the score distribution justifying each chosen floor; the implementer's interpretation of "iterate until pass" determines whether the feature reproducibly catches the bug class on re-runs.
+
+**Other MEDIUM findings:**
+- REQ-010 API-contract preservation gated by `tests/eval/` fixtures using `issubset` (the bug-blind assertion the feature is fixing) plus an OpenAPI diff that doesn't catch envelope/header changes — needs an explicit byte-identical contract test.
+- No positive REQ or test for `language auto-detect` correctly routing `language: auto` requests to the right sub-engine end-to-end (only mentioned in EDGE-001, EDGE-004, REQ-012).
+- MODULE-001 `MultiNlpEngine` risk should be re-tiered Medium → HIGH because silent wrong-engine routing is undetectable by existing `issubset` fixtures and the new `expect_clean` fixtures only catch the broader-class over-detection, not a hypothetical engine-swap bug.
+
+**LOW findings (7):** REQ-008 broader-class extension rule unspecified; REQ-011 diff target across both repos; PERF-001 warm-up vs. steady-state latency split; behavioral acceptance for model-load-once beyond mock; REQ-005a two-acceptable-behaviors split for `/health` partial-load; RISK-003 upstream-merge CI check unoperationalized; RISK-001 missing HF Hub rate-limit mitigation.
+
+**Recommendation:** address the 4 MEDIUM findings before implementation (especially calibration circularity and MODULE-001 risk re-tier — the latter affects Step 4b review depth). Batch all LOWs (this review's 7 + iter 1 panel's 6 + iter 2 panel's 2) into Step 3e combined critical-review fix.
+
+No code changes, no commits.
+
+### Step 3e — Combined fix (panel LOW + critical)
+
+Spawned 2026-05-06 11:30:27. Counter file: `SDD/orchestration/counters/3e-1-2026-05-06_11-30-27.md`. Final counter: Reads ~7/10, Nested subagents 0/4.
+
+**Deliverable:** Updated `SDD/requirements/SPEC-007-transformers-nlp-backend.md`; appended `## Findings Addressed (Iteration combined-3e)` to all three review documents (PANEL iter 1, PANEL iter 2, CRITICAL).
+
+**Severity counts resolved at 3e:**
+- **From iter 1 panel (deferred LOWs):** 2 LOWs newly resolved at 3e (input-size validation note for SEC-001; cold-start traffic spike on PERF-002). 3 additional iter 1 LOWs were already addressed inside iter 1 MEDIUM fixes (latency baseline anchor; model-load-once invariant; tighten MODULE-001 Hides) — acknowledged in the iteration combined-3e section. 1 iter 1 LOW was subsumed by iter 1 MEDIUM (asymmetric load failure modes).
+- **From iter 2 panel (net-new LOWs):** 3 LOWs resolved (PERF-001 long-document anchor → REQ-009b; digest manifest module ownership → MODULE-002 + MODULE-003 ownership split; REQ-013 build-time CPU cost note).
+- **From critical review:** **4 MEDIUM resolved** (#1 calibration four-bar protocol; #3+#9 REQ-010a contract test; #5 REQ-016 auto-detect routing test; #11 MODULE-001 Risk re-tier Medium → HIGH) and **7 LOW resolved** (#2 broader-class extension rule; #4 REQ-011 diff target; #6 PERF-001 warm-up + steady-state; #7 PERF-002 startup-log behavioral acceptance; #8 REQ-005a 503-vs-unbound chosen behavior; #10 RISK-003 → REQ-017; #13 RISK-001 HF rate-limit mitigation).
+
+**Total at 3e:** 4 MEDIUM + 12 LOW addressed (matches: 2 iter 1 deferred + 3 iter 2 + 7 critical LOWs = 12 LOWs; 4 critical MEDIUMs = 4 MEDIUMs).
+
+**Structural change:** **MODULE-001 Risk: Medium → HIGH.** Justification rewritten to name silent wrong-engine routing as the dominant production risk (one-character dispatch flip undetectable by `issubset` fixtures or `expect_clean` fixtures). REQ-016 (new) is the structural mitigation. Risk tier propagates to `/sdd:code-review` Step 4b for scaled review depth.
+
+**New REQs added:** REQ-005a was already added in iter 1; at 3e: REQ-009b (held-out positive DE LOCATION + DE DATE_TIME fixtures + long-document anchor), REQ-010a (byte-identical API-shape regression test), REQ-016 (end-to-end `language: auto` routing test), REQ-017 (upstream-merge CI smoke check operationalizing RISK-003 mitigation). All four wired to the Validation Strategy and to MODULE Spec refs.
+
+**Spec edits summary:** 19 distinct spec edits across REQ-006, REQ-007, REQ-009 (extension rule), REQ-009b (new), REQ-010 (note), REQ-010a (new), REQ-011, REQ-013 (CPU cost note), REQ-005a (503-vs-unbound), REQ-016 (new), REQ-017 (new), PERF-001 (warm-up + steady-state), PERF-002 (behavioral acceptance + restart spike), SEC-001 (input-size note), MODULE-001 Risk (HIGH), MODULE-002 (digest manifest ownership), MODULE-003 (digest manifest read/write logic), MODULE-005 + MODULE-006 spec refs, EDGE-006, RISK-001 (HF rate-limit), RISK-003 (REQ-017 cross-link), Validation Strategy (3 new lines), Implementation Notes steps 6/7/8/9/10/11.
+
+**Frontmatter unchanged:** `review_panel`, `eval_required`, `cross_cutting_decisions`, `delivery_mode` all preserved verbatim.
+
+No code changes, no commits.

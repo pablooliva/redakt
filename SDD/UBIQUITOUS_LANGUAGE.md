@@ -39,6 +39,16 @@ Transformer NER scores that vary continuously per detection (typically 0.4–1.0
 - *Synonyms to avoid:* "continuous scores", "real scores" (judgemental).
 - *Reference:* RESEARCH-007 §6.4, §14; `presidio_analyzer/nlp_engine/ner_model_configuration.py:63-64` (`default_score: 0.85` source — the `Field(default=0.85, ge=0.0, le=1.0, ...)` line).
 
+### expect_clean fixture
+A `tests/eval/fixtures/*.yaml` entry carrying `expect_clean: true`. Asserts `found == []` — i.e., **zero entities of any type** must flag for the phrase to PASS. Distinct from the default `issubset` branch, which only catches missing entities. The `expect_clean` branch is the only mechanism in the eval suite that catches over-detection, which is why the broader-class fix is gated on adding `expect_clean` fixtures (SPEC-007 REQ-009, MODULE-005).
+- *Synonyms to avoid:* "clean fixture", "negative fixture" (vague), "false-positive fixture" (the assertion is about over-detection, not specifically false positives).
+- *Reference:* `tests/eval/test_calibration.py:46-50`; SPEC-007 REQ-009; RESEARCH-007 §8.2.
+
+### multi engine name
+The string literal `multi` used as `nlp_engine_name: multi` in the analyzer YAML and as a dispatch key in `install_nlp_models.py`. Selects the `MultiNlpEngine` implementation when `NlpEngineProvider.create_engine()` reads the YAML. Coined by SPEC-007 REQ-002 and REQ-004; introduced alongside the `multi.yaml` config file at `presidio/presidio-analyzer/presidio_analyzer/conf/multi.yaml`.
+- *Synonyms to avoid:* "mixed engine name" (we already use `asymmetric routing` for the architectural pattern; `multi` is the configuration key), "per-language engine name".
+- *Reference:* SPEC-007 REQ-002, REQ-003, REQ-004, MODULE-002; RESEARCH-007 §3.3 Option C.
+
 ---
 
 ## Actions (operations / verbs)
