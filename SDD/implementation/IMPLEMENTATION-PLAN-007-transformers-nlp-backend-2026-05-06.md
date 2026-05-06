@@ -7,9 +7,21 @@
 - **Specification:** [SDD/requirements/SPEC-007-transformers-nlp-backend.md](../requirements/SPEC-007-transformers-nlp-backend.md)
 - **ADR:** [SDD/adr/0001-presidio-per-language-nlp-engine.md](../adr/0001-presidio-per-language-nlp-engine.md)
 - **Started:** 2026-05-06
-- **Author:** Claude
-- **Status:** Complete (code-review APPROVED at Step 4b; F-1..F-4 addressed at Step 4c)
+- **Completion Date:** 2026-05-06
+- **Implementation Duration:** ~1 day (single-session SDD-flow run)
+- **Author:** Claude (orchestrating per Pablo Oliva's autonomous-mode preference)
+- **Status:** Complete ✓
 - **Delivery mode:** whole-feature
+- **Final test sweep:** Redakt 350 unit + 59 eval + 15 contracts + 3 integration + Presidio fork 31 = **458 tests, 100% pass**
+
+## Executive Summary
+
+- **Based on Specification:** SPEC-007-transformers-nlp-backend.md
+- **Research Foundation:** RESEARCH-007-transformers-nlp-backend.md
+- **ADR:** ADR-0001-presidio-per-language-nlp-engine.md
+- **Code review (Step 4b):** APPROVED (HIGH 0, MEDIUM 1, LOW 3) — F-1..F-4 addressed at Step 4c.
+- **Critical implementation review (Step 4d):** PROCEED WITH FIXES (HIGH 1, MEDIUM 4, LOW 5) — all 10 findings addressed at Step 4e.
+- **Result:** All functional REQs (REQ-001..REQ-017) Complete; all 8 EDGE cases Covered; all 6 FAIL scenarios Implemented; all PERF-001..003, SEC-001..004, PRIV-001..002, REL-001..003 non-functional REQs Validated.
 
 ## Overview
 
@@ -528,6 +540,95 @@ This converts a procedural commitment into a checklist tied to the calibration t
 **HF Hub token plumbing (SDD-007 4e F-L, RISK-001).** Token plumbing is operator-hand-rolled. The README documents the BuildKit-secret invocation pattern (`docker buildx build --secret id=hf_token,env=HUGGINGFACE_HUB_TOKEN ...`) for environments that hit anonymous rate limits. The default build path is anonymous; this is acceptable for typical dev cadence given the model is fetched once per build and BuildKit caches the layer. Production deploys that rebuild frequently should configure the token; the corresponding `--mount=type=secret` block in `Dockerfile.multi` is left as a deliberate operator extension to avoid coupling the image to a token-presence assumption.
 
 **Two-repo SHA traceability (SDD-007 4e F-J).** `.presidio-pin` at the Redakt repo root records the fork branch + commit SHA range for the feature. Future Redakt commits that touch the analyzer integration MUST update this file in the same commit. If the fork rebases (RISK-003), update the SHAs here to keep the pairing intact. The CLAUDE.md decision to keep `presidio/` as a fork checkout (not a submodule) stands — `.presidio-pin` is the lighter-weight discipline alternative.
+
+## Implementation Completion Summary
+
+### What Was Built
+
+SDD-007 introduces **asymmetric per-language NLP routing** to Redakt's Presidio analyzer. A new `MultiNlpEngine` class lives in the Presidio fork as the deep module (MODULE-001) and dispatches `process_text` / `process_batch` to a per-language sub-engine: spaCy `en_core_web_lg` for English (preserved verbatim from the prior config), and a transformer pipeline (`FacebookAI/xlm-roberta-large-finetuned-conll03-german`, pinned to commit SHA `1fbcc7a00a69ce5ab754623154a8e9cc6ba868e2`) for German. The two engines coexist inside one analyzer container; callers continue to invoke the analyzer as a single `NlpEngine` and routing is invisible to Redakt's API surface.
+
+The supply-chain trust anchor is a checked-in **digest manifest** (`presidio/.../conf/multi.model_digests.json`, 14 SHA-256 entries for the pinned revision) that `install_nlp_models.py` verifies on every build. First-build mode captures the manifest; subsequent builds verify byte-for-byte and fail loudly on tamper. Build-time and runtime `revision=` are forwarded into `from_pretrained` calls (chunk 4c F-1 patch). The image is wired via a new `Dockerfile.multi` and a retargeted `docker-compose.yml`; healthcheck `start_period: 30s` matches the REQ-014 formula `max(30s, ceil(2 × 9s))` with the measured cold-start of 9 s on Apple Silicon dev hardware. Two-phase startup uses Behavior B (Presidio's synchronous `AnalyzerEngineProvider.create_engine()` blocks port-bind until `MultiNlpEngine.load()` returns, so a failure exits the process before HTTP serves).
+
+Threshold tuning landed without any value change. The chunk-1B placeholder `entity_score_thresholds = {"LOCATION": 0.90, "DATE_TIME": 0.95}` (Redakt-side) and `low_score_entity_names: [ORG, ORGANIZATION]` / `low_confidence_score_multiplier: 0.4` (analyzer-side, DE row only) survived the four-bar stopping condition under Spec Amendment 2026-05-06 (Option A). Calibration is executed via `tools/calibration_report.py --raw --out` against the live stack, with reproducibility verified by re-run. The eval suite expanded from 41 to 59 fixtures: 15 broader-class `expect_clean: true` German common-noun fixtures (REQ-009), 1 DE LOCATION held-out positive (REQ-009b), 1 long-document anchor (557 tokens, exercises `stride: 16` windowing per EDGE-006), and 1 code-switched fixture added at Step 4e (closes EDGE-001 / F-M).
+
+### Requirements Validation
+
+#### Functional Requirements (REQ-001 → REQ-017)
+
+| REQ | Status | Evidence |
+| --- | --- | --- |
+| REQ-001 `MultiNlpEngine` subclass | Complete | `presidio_analyzer/nlp_engine/multi_nlp_engine.py:91-341`; 19 unit tests in `tests/test_multi_nlp_engine.py`. |
+| REQ-002 NlpEngineProvider registration (`multi`) | Complete | `nlp_engine_provider.py:43-49`; schema-validator docstring annotation per F-E. |
+| REQ-003 `multi.yaml` config | Complete | `presidio_analyzer/conf/multi.yaml`. |
+| REQ-004 `install_nlp_models.py` extension | Complete | `install_nlp_models.py:81-90` + `_install_multi_engine_models` (177-283). |
+| REQ-005 Dockerfile + compose wiring | Complete | `Dockerfile.multi`, `docker-compose.yml:25-49`. |
+| REQ-005a Two-phase startup contract | Complete | Behavior B; `is_loaded()` aggregation in `multi_nlp_engine.py:223-232`. |
+| REQ-006 Per-entity score floor re-tune | Complete | Four-bar verification in `reports/calibration-007-after.md`; entity-conditional Bar 2 per Amendment. |
+| REQ-007 Global threshold knob re-tune | Complete | DE-row knobs retained; EN frozen; evidence in same calibration report. |
+| REQ-008 Calibration corpus expansion | Complete | 15 broader-class + 1 long-doc anchor exercised by `tools/calibration_report.py --raw --out`. |
+| REQ-009 New CI fixtures (broader class) | Complete | 15 `expect_clean: true` entries in `tests/eval/fixtures/de.yaml`; extension-rule comment per F-G. |
+| REQ-009b Held-out positive + long-doc anchor | Complete | DE LOCATION + 557-token anchor; DE DATE_TIME dropped per Amendment. |
+| REQ-010 API contract preservation | Complete | `tests/contracts/openapi-baseline.json` + `test_openapi_diff.py` (2 tests). |
+| REQ-010a API-shape regression test | Complete | `test_api_shape.py` 5 tests + 5 snapshot baselines; tamper test verified once. |
+| REQ-011 Recognizer-registry floor | Complete | `test_recognizer_registry_floor.py` 8 parametrized tests; empty diffs both repos. |
+| REQ-012 Code-switched-text docs | Complete | `README.md`, `docs/v1-feature-spec.md`, `docs/presidio-integration.md`. |
+| REQ-013 HF revision pinning + digest manifest | Complete | Build-time forwarding + populated 14-entry manifest + tamper test transcript at `reports/req-013-tamper.md`; runtime `from_pretrained(revision=...)` patch landed at chunk 4c. |
+| REQ-014 Cold-start measurement gate | Complete | 9 s measured; `start_period: 30s` per formula (revised from 90s at F-D). |
+| REQ-015 Pre-deploy in-Redakt probe | Complete | `reports/req-015-probe.md` matches RESEARCH-007 §4.5 byte-for-byte. |
+| REQ-016 `language: auto` E2E routing test | Complete | `tests/integration/test_auto_detect_routing.py` 3 tests; engine-swap fingerprint sanity check included. |
+| REQ-017 Upstream-merge regression CI smoke | Complete | `presidio/presidio-analyzer/scripts/upstream-merge-check.sh` runs 31 unit tests + offline smoke. |
+
+#### Performance (PERF), Security (SEC), Privacy (PRIV), Reliability (REL)
+
+| Group | ID | Status | Evidence |
+| --- | --- | --- | --- |
+| PERF | PERF-001 reproducible latency baseline | Met | DE bare-noun 0.079 s · EN PII 0.005 s · DE long-doc 1.262 s (median of N=5 warm). |
+| PERF | PERF-002 cold-start + load-once | Met | 9 s end-to-end; per-model `LOADED ...` log appears once before HTTP bind. |
+| PERF | PERF-003 image size growth | Met | 36.8 GB uncompressed (multi-arch); single-arch path documented per F-H. |
+| SEC | SEC-001 no new PII storage paths | Validated | Audit logger emits typed metadata only (`src/redakt/services/audit.py:105-171`). |
+| SEC | SEC-002 recognizer-registry floor preserved | Validated | `test_recognizer_registry_floor.py` 8 parametrized tests. |
+| SEC | SEC-003 model supply-chain trust boundary | Validated | Revision pinning + populated 14-entry digest manifest + tamper test transcript. |
+| SEC | SEC-004 internal-only Presidio surface | Validated | `docker-compose.yml`: analyzer publishes no host port. |
+| PRIV | PRIV-001 no PII at rest, no PII in audit log | Validated | Same evidence as SEC-001. |
+| PRIV | PRIV-002 calibration corpus is synthetic | Validated | All new DE fixtures synthetic placeholder phrases; calibration is dev-time only. |
+| REL | REL-001 build-time failure surface | Validated | FAIL-001 + FAIL-005 install-side coverage. |
+| REL | REL-002 runtime failure surface (no silent fallback) | Validated | FAIL-002 parametrized + FAIL-003 + REQ-005a Behavior B. |
+| REL | REL-003 calibration data is dev-time only | Validated | Production deployment image excludes `tests/eval/fixtures/`. |
+
+### Test Coverage Achieved
+
+| Suite | Count | Notes |
+| --- | --- | --- |
+| Redakt unit + integration (`tests/`) | **350** | Default suite, excludes live-stack via `pyproject.toml addopts`. |
+| Redakt eval fixtures (`tests/eval/`) | **59** | 41 existing + 15 broader-class + 2 REQ-009b held-out + 1 code-switched (F-M). |
+| Redakt contracts (`tests/contracts/`) | **15** | OpenAPI diff (2) + API shape (5) + recognizer floor (8). |
+| Redakt integration (`tests/integration/`) | **3** | `language: auto` × {DE, EN, swap-detect fingerprint}. |
+| Presidio fork (`tests/test_multi_nlp_engine.py`) | **19** | 15 chunk-1A + 2 chunk-5 FAIL-002 + 2 chunk-4c REQ-013 runtime-revision. |
+| Presidio fork (`tests/test_install_nlp_models_multi.py`) | **12** | 7 chunk-5 FAIL-005 + 5 chunk-4e tamper / round-trip / NEW / MISSING / empty-placeholder. |
+| **Total** | **458** | All green at Step 4f finalization. |
+
+#### Test Type Coverage
+
+- **Unit tests:** PRESENT (chunk 1A `MultiNlpEngine` + chunk 5 install dispatcher + chunk 4e tamper).
+- **Integration tests:** PRESENT (chunk 4 `tests/integration/test_auto_detect_routing.py`).
+- **E2E / Playwright tests:** **N/A** — feature is API-side only; no UI / HTMX / JS changes per REQ-012 (frontend explicitly out of scope per CLARIFICATION Q5d). The `tests/e2e/` Playwright suite remains unchanged from prior features.
+
+### Subagent Utilization Summary
+
+Counter files retained at `SDD/orchestration/counters/` for full audit trail. Counter file enumeration:
+
+- Chunks 2a–2d: 5 subagents (research / planning helpers).
+- Chunks 3a–3e + amendment: 7 subagents (planning / spec helpers).
+- Chunk 4a-1A through 4a-5: 9 subagents (implementation chunks 1A → 5, plus retries: 2-retry, 1B-commit closeout).
+- Chunk 4b: 1 subagent (code review).
+- Chunk 4c: 1 subagent (code-review fix landings).
+- Chunk 4d: 1 subagent (critical implementation review).
+- Chunk 4e: 1 subagent (critical-review fix landings).
+- Chunk 4f: 1 subagent (this finalization).
+
+**Total subagents: 26.** No bail-outs (every counter file shows Reads ≤ ceiling and Nested subagents ≤ 4).
+
+The chunk subagent delegation chain is preserved in the per-chunk subsections above (Chunk 1A → Chunk 1B → Chunk 2 retry → Chunk 3 → Chunk 4 → Chunk 5 → Chunk 4c → Chunk 4e → Chunk 4f), each with its own Reads / Nested-subagents counter.
 
 ## Notes
 

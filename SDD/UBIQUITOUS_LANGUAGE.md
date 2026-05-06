@@ -44,10 +44,25 @@ A `tests/eval/fixtures/*.yaml` entry carrying `expect_clean: true`. Asserts `fou
 - *Synonyms to avoid:* "clean fixture", "negative fixture" (vague), "false-positive fixture" (the assertion is about over-detection, not specifically false positives).
 - *Reference:* `tests/eval/test_calibration.py:46-50`; SPEC-007 REQ-009; RESEARCH-007 §8.2.
 
+### code-switched fixture
+A `tests/eval/fixtures/de.yaml` entry that mixes English and German tokens in one phrase (e.g., `"Anna Smith works in München für die Beispiel GmbH."` with `language: de` and `expect: [LOCATION]`). Concretizes EDGE-001's "no test coverage required beyond non-crash" into a behaviorally-verified assertion: the DE transformer pipeline tokenizes mixed text without raising AND the German LOCATION (`München`) is found despite the English subject + company-name span. Added at Step 4e per critical-review finding F-M; the positive-bar (`expect: [LOCATION]`) is preferred over `expect_clean: true` because the latter would pass vacuously if windowing silently dropped all spans.
+- *Synonyms to avoid:* "mixed-language fixture" (less precise — code-switching is the specific linguistic phenomenon), "bilingual fixture".
+- *Reference:* `tests/eval/fixtures/de.yaml` (Anna Smith fixture); SDD-007 Step 4e Findings Addressed F-M; SPEC-007 EDGE-001.
+
 ### multi engine name
 The string literal `multi` used as `nlp_engine_name: multi` in the analyzer YAML and as a dispatch key in `install_nlp_models.py`. Selects the `MultiNlpEngine` implementation when `NlpEngineProvider.create_engine()` reads the YAML. Coined by SPEC-007 REQ-002 and REQ-004; introduced alongside the `multi.yaml` config file at `presidio/presidio-analyzer/presidio_analyzer/conf/multi.yaml`.
 - *Synonyms to avoid:* "mixed engine name" (we already use `asymmetric routing` for the architectural pattern; `multi` is the configuration key), "per-language engine name".
 - *Reference:* SPEC-007 REQ-002, REQ-003, REQ-004, MODULE-002; RESEARCH-007 §3.3 Option C.
+
+### digest manifest
+The supply-chain trust anchor for SDD-007's HF model integrity verification: a JSON file (`presidio/presidio-analyzer/presidio_analyzer/conf/multi.model_digests.json`) listing per-file SHA-256 digests for every weight / tokenizer / config artifact at the pinned HF revision. `install_nlp_models.py` reads on every build; an empty manifest (`{}`) triggers first-build baseline-capture mode, a populated manifest triggers verify mode (build fails on per-file mismatch). Atomic write via `os.replace` after `.tmp` to be parallel-CI-safe. Required by REQ-013; HIGH-severity F-A finding at Step 4d (the empty placeholder shipped at chunk 1B was caught and populated at chunk 4e — 14 entries for the pinned `xlm-roberta-large-finetuned-conll03-german@1fbcc7a0...`).
+- *Synonyms to avoid:* "checksum file" (manifest is the precise term — it lists multiple files, not a single checksum), "model fingerprint" (vague).
+- *Reference:* `presidio/presidio-analyzer/install_nlp_models.py` (`_load_digest_manifest`, `_write_digest_manifest`, `_verify_digest_manifest`); SPEC-007 REQ-013, SEC-003.
+
+### revision pin
+The HF Hub commit SHA recorded in `multi.yaml`'s `de` row under `revision:` (currently `1fbcc7a00a69ce5ab754623154a8e9cc6ba868e2`). The pin is forwarded into `huggingface_hub.snapshot_download(revision=...)` at build time AND into `from_pretrained(revision=...)` at both build and runtime via the chunk-4c F-1 patch (`MultiNlpEngine._build_sub_engine` → `TransformersNlpEngine.load()` → `pipe_config["revision"]`). Revision pinning alone is insufficient because HF Hub can mutate bytes served under a given revision — the `digest manifest` is the byte-level trust anchor; revision pin is the addressing mechanism that selects which bytes to verify.
+- *Synonyms to avoid:* "model version" (a revision is a commit SHA, not a semantic version), "checkpoint pin" (vague).
+- *Reference:* `presidio/presidio-analyzer/presidio_analyzer/conf/multi.yaml` (`revision:` key); SPEC-007 REQ-013, RISK-001.
 
 ---
 
@@ -72,6 +87,11 @@ The non-regression bar for English: the set of entity *types* flagged on en fixt
 The eval suite's permissive check (`expected.issubset(found)`): asserts every entity in `expect` appears in `found`, but tolerates *extra* unexpected entities. Concretely: it does NOT catch over-detection. The complementary `expect_clean: true` branch (`found == []`) is the only assertion in the suite that catches over-detection, which is why the broader-class bug is invisible in the current 41/41 PASS line until `expect_clean` fixtures land.
 - *Synonyms to avoid:* "subset check", "permissive assertion" (vague).
 - *Reference:* `tests/eval/test_calibration.py:46-60` (especially line 55); RESEARCH-007 §8.2, §14.
+
+### four-bar stopping condition
+The calibration acceptance protocol for REQ-006 / REQ-007 threshold tuning. Tuning iterations stop only when ALL four bars hold: (1) **Negative bar** — every `expect_clean` and `issubset` fixture passes; (2) **Held-out positive bar** — for every entity type the configured engine covers, at least one positive fixture surfaces the expected entity in `found` (entity-conditional per Spec Amendment 2026-05-06: DE DATE_TIME excluded because xlm-roberta CoNLL-03 has no DATE label); (3) **Score-distribution annotation** — calibration report committed alongside threshold changes documents the distribution per tuned knob; (4) **Reproducibility** — re-run produces values within ±0.05. SDD-007's chunk 2 retry hit all four bars at iteration 0 — fixture addition alone satisfied REQ-008 / REQ-009 / REQ-009b without any threshold movement.
+- *Synonyms to avoid:* "calibration check", "four-fold protocol" (vague), "tuning gate" (collides with CI gate terminology).
+- *Reference:* SPEC-007 REQ-006; `reports/calibration-007-after.md` four-bar table; Amendment 2026-05-06.
 
 ---
 

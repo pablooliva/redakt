@@ -779,3 +779,99 @@ Created `presidio/presidio-analyzer/scripts/upstream-merge-check.sh`. Runs: (1) 
 - Presidio fork install + multi-engine tests: 31 passed (was 26; added 5 tamper tests)
 
 **Counter usage for Step 4e:** Reads 13/15, Nested subagents 0/4.
+
+## Implementation Phase - COMPLETE ✓
+
+### Step 4f — Implementation finalization
+
+**Status:** Complete. SDD-007 transformers-nlp-backend is finalized and ready for `/sdd:commit` (Step 4i).
+
+**Pre-completion verification (binding gate):**
+- All REQ-001..REQ-017 show "Complete" with citations in IMPLEMENTATION-PLAN.
+- All PERF-001..003 show "Met" with metric records.
+- All SEC-001..004 + PRIV-001..002 show "Validated".
+- All EDGE-001..008 show "Covered" implementation.
+- All FAIL-001..006 show "Implemented" error handling.
+- Test coverage meets / exceeds spec target (chunk-3 contracts + chunk-4 integration cover REQ-010 / REQ-016; eval suite expanded 41 → 59).
+- No "Blocked / Pending" items in IMPLEMENTATION-PLAN.
+- All 26 subagent delegations completed and documented in `SDD/orchestration/counters/`.
+
+**Test verification gate (binding):**
+
+| Suite | Count | Result |
+| --- | --- | --- |
+| `uv run pytest tests/` | 350 | PASS |
+| `uv run pytest tests/eval/` | 59 | PASS |
+| `uv run pytest tests/contracts/` | 15 | PASS |
+| `uv run pytest tests/integration/` | 3 | PASS |
+| Presidio fork: `tests/test_multi_nlp_engine.py` + `tests/test_install_nlp_models_multi.py` | 31 | PASS |
+| **Total** | **458** | **100% PASS** |
+
+**Test type coverage:**
+- Unit tests: PRESENT (chunk 1A `MultiNlpEngine` 15 + chunk 5 install 7 + chunk 4e tamper 5 + chunk 5 FAIL-002 2 + chunk 4c REQ-013 2).
+- Integration tests: PRESENT (chunk 4 `tests/integration/test_auto_detect_routing.py` 3).
+- Contract tests: PRESENT (chunk 3 OpenAPI + API shape + recognizer floor 15).
+- E2E / Playwright tests: **N/A** — feature is API-side only; no UI / HTMX / JS changes per REQ-012 (frontend explicitly out of scope per CLARIFICATION Q5d).
+
+**Spec coverage verification:** Every REQ / EDGE / FAIL / PERF / SEC / PRIV / REL maps to a test or design-time guard with file:line citation in the IMPLEMENTATION-PLAN's Specification Alignment checklist.
+
+**Deliverables written at Step 4f:**
+- `SDD/implementation/IMPLEMENTATION-PLAN-007-transformers-nlp-backend-2026-05-06.md` — Status set to "Complete ✓", Completion Date filled, Executive Summary header added, `## Implementation Completion Summary` section appended with REQ validation tables + test coverage + subagent utilization summary.
+- `SDD/requirements/SPEC-007-transformers-nlp-backend.md` — `## Implementation Summary` section appended (after `## Amendments`, before `## Implementation Notes`) with completion details, requirements validation results, performance results, implementation insights, and deviations from original spec.
+- `SDD/implementation/summaries/IMPLEMENTATION-SUMMARY-007-2026-05-06_16-23-50.md` — full implementation summary per /sdd:implementation-complete §3 template.
+- `SDD/UBIQUITOUS_LANGUAGE.md` — added 4 new domain terms: `digest manifest`, `revision pin`, `four-bar stopping condition`, `code-switched fixture`.
+- `SDD/orchestration/progress.md` — this `## Implementation Phase - COMPLETE ✓` block.
+
+**Commit timeline (cross-repo):**
+
+Presidio fork (`feature/redakt-007-multi-nlp-engine`):
+- `1070180b` chunk 1A — `MultiNlpEngine` + provider registration + 15 unit tests.
+- `d604514` chunk 1B partial — `multi.yaml`, install dispatcher, `Dockerfile.multi`, smoke test, empty digest manifest.
+- `258ded3` chunk 4c — F-1 runtime revision-forwarding patch.
+- `23049af` chunk 5 — REQ-017 upstream-merge gate + FAIL-002 + FAIL-005 install-side tests + `MULTI_ENGINE.md`.
+- `4573133` chunk 4e — populated digest manifest (14 entries) + 5 tamper / round-trip / NEW / MISSING / empty-placeholder tests + atomic-write + retry-after-failure relaxation + schema docstring.
+
+Redakt (`feature/007-transformers-nlp-backend`):
+- `0c08ed2` chunk 1A tracker.
+- `3fc10b1` chunk 1B partial — `docker-compose.yml` retarget + tracker plumbing.
+- `e316caf` chunk 2 retry — 17 new DE fixtures + four-bar verification.
+- `1092d8b` chunk 3 — contract gates (REQ-010 / 010a / 011).
+- `f5f1543` chunk 4 — auto-detect routing + edges + cold-start (REQ-012 / 014 / 015 / 016 + EDGE-001..008).
+- `1d1c337` chunk 5 — final tracker close-out + non-functional REQs.
+- `dc2bac1` chunk 4c — F-1 acknowledgment + tracker update.
+- `0843677` chunk 4e — `start_period: 30s` + LOW findings (single-arch docs + HF token + `.presidio-pin` + code-switched fixture + extension-rule comment + tests/conftest annotation).
+- _next commit_ Step 4f finalization (this entry + tracker + spec + summary + glossary).
+
+**Decision:** **READY FOR /sdd:commit (Step 4i).** Implementation phase is structurally complete; documentation finalization is durable on disk. LangSmith / regression-eval-capture follows at Step 4g per SDD-flow integration.
+
+**Counter usage for Step 4f:** Reads ~10/12, Nested subagents 0/4.
+
+### Step 4g — Regression eval scaffolding (warning)
+
+**Spawned:** 2026-05-06 16:35:24. Counter file: `SDD/orchestration/counters/4g-1-2026-05-06_16-35-24.md`.
+
+**Prerequisite check results:**
+- `langsmith` CLI: PRESENT (`/Users/pablo/.local/bin/langsmith`).
+- `LANGSMITH_API_KEY`: **MISSING** (env unset).
+- `LANGSMITH_PROJECT`: **MISSING** (env unset; not in `.env`).
+
+**Decision:** Per the regression-eval-capture sdd-flow integration, missing prerequisites are **non-blocking**. The feature has shipped; the eval is a follow-up concern. Skipped LangSmith dataset creation (Step 4 of the embedded command) and skipped any remote calls. Wrote offline scaffolding so the structure is ready when Pablo configures the LangSmith credentials.
+
+**Artifacts written (offline):**
+- `evals/README.md` — eval directory overview + datasets table (status `needs-population`).
+- `evals/datasets/transformers-nlp-backend.json` — empty JSON array stub.
+- `evals/evaluators/transformers_nlp_backend_evaluator.py` — `precision_recall_f1` custom-code evaluator over `(entity_type, start, end)` tuples; REQ bindings noted in trailing comment.
+- `evals/run_functions/transformers_nlp_backend_run.py` — `run_feature(inputs)` wrapping `POST /api/detect` (defaults to `http://localhost:8000`, env-overridable via `REDAKT_BASE_URL`).
+
+**Eval shape selection:** `single_step` (NER inference is a single function call). **Evaluator type:** `custom_code` (set-based comparison is deterministic; LLM-as-judge would be noisy).
+
+**LangSmith dataset:** **NOT created.** Manual follow-up required (see below).
+
+**Manual follow-up for the operator (Pablo):**
+1. Set `LANGSMITH_API_KEY` and `LANGSMITH_PROJECT` (env or `.env`).
+2. Run `langsmith dataset create --name "regression-transformers-nlp-backend" --description "Regression eval for SDD-007 transformers-nlp-backend. Captured 2026-05-06 from SPEC-007. Populate with 10-20 golden examples after feature runs in production for >=1 week."`.
+3. After >=1 week of feature runtime, populate the dataset with 10-20 golden examples (positive DE PER/ORG/LOC sentence-context, EN baseline, broader-class `expect_clean` negatives). Mirror examples into `evals/datasets/transformers-nlp-backend.json` for offline replay.
+4. Verify `_extract_output` matches the actual `/api/detect` response shape on 2-3 real inputs before trusting evaluator scores (langsmith-evaluator Golden Rule).
+5. Update the `Status` column of the datasets table in `evals/README.md` from `needs-population` to `populated`.
+
+**Counter usage for Step 4g:** Reads 2/10, Nested subagents 0/4. Bail-out budgets respected.

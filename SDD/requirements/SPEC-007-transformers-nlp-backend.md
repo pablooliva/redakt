@@ -647,6 +647,60 @@ Plus the `multi` branch in `ConfigurationValidator.validate_nlp_configuration`.
 
 ---
 
+## Implementation Summary
+
+### Completion Details
+
+- **Completion Date:** 2026-05-06
+- **Implementation Duration:** ~1 day (single-session SDD-flow run, autonomous mode)
+- **Implementation Plan:** [`SDD/implementation/IMPLEMENTATION-PLAN-007-transformers-nlp-backend-2026-05-06.md`](../implementation/IMPLEMENTATION-PLAN-007-transformers-nlp-backend-2026-05-06.md)
+- **Implementation Summary:** [`SDD/implementation/summaries/IMPLEMENTATION-SUMMARY-007-2026-05-06_16-23-50.md`](../implementation/summaries/IMPLEMENTATION-SUMMARY-007-2026-05-06_16-23-50.md)
+- **Reviews:**
+  - Step 4b code review: [`SDD/reviews/REVIEW-007-transformers-nlp-backend-20260506.md`](../reviews/REVIEW-007-transformers-nlp-backend-20260506.md) — APPROVED.
+  - Step 4d critical implementation review: [`SDD/reviews/CRITICAL-IMPL-transformers-nlp-backend-20260506.md`](../reviews/CRITICAL-IMPL-transformers-nlp-backend-20260506.md) — PROCEED WITH FIXES (all 10 findings addressed at Step 4e).
+
+### Requirements Validation Results
+
+All 17 functional REQs (REQ-001..REQ-017), 8 EDGE cases (EDGE-001..008), 6 FAIL scenarios (FAIL-001..006), 3 PERF, 4 SEC, 2 PRIV, and 3 REL non-functional REQs are **Complete** with citations recorded in the IMPLEMENTATION-PLAN tracker. The full evidence matrix lives there; this summary surfaces the headline numbers:
+
+- **Eval suite:** 59 fixtures (41 baseline + 15 broader-class + 1 DE LOCATION held-out + 1 long-doc anchor + 1 code-switched), 100% PASS.
+- **Contract gates:** 15 tests (OpenAPI diff + API shape + recognizer floor), 100% PASS.
+- **Integration:** 3 `language: auto` routing tests with engine-swap fingerprint sanity check, 100% PASS.
+- **Presidio fork tests:** 31 tests (`test_multi_nlp_engine.py` 19 + `test_install_nlp_models_multi.py` 12), 100% PASS.
+- **Default Redakt suite:** 350 unit + integration tests, 100% PASS.
+- **Total:** **458 tests, 100% pass.**
+
+### Performance Results
+
+PERF-001 latency anchors (chunk 4 baseline; median over N=5 warm requests):
+
+| Anchor | Text | Median latency |
+| --- | --- | --- |
+| Short bare-noun (DE) | `Personalausweis` | 0.079 s |
+| Sentence-context PII (EN) | `My name is John Smith.` | 0.005 s |
+| Long-document anchor (DE 557 tokens) | REQ-009b long-doc fixture | 1.262 s |
+
+The DE long-document anchor at 1.26 s sits inside the RESEARCH-007 §4 / CLARIFICATION-007 Q4 0.5–3 s expectation envelope. Cold-start (PERF-002): 9 s end-to-end on Apple Silicon dev hardware; per-model `LOADED ...` log emits exactly once before HTTP bind. Image size (PERF-003): 36.8 GB uncompressed multi-arch on developer machine — documented for regression comparison; single-arch operator path documented in README per F-H.
+
+### Implementation Insights
+
+- **Custom `MultiNlpEngine` subclass as the deep module.** Per-language dispatch happens inside `MultiNlpEngine`, never at the caller. Every code path that calls `nlp_engine.process_text(text, language)` continues to work unchanged — there is no "unwrap to the right sub-engine" in caller code. This is the structural reason MODULE-001 was escalated to HIGH risk at Step 3e and given full-internals review depth at Step 4b.
+- **Digest manifest as supply-chain trust anchor.** `multi.model_digests.json` (14 SHA-256 entries) is checked into the Presidio fork. `install_nlp_models.py` reads on every build, recomputes per-file digests, fails the build on mismatch, atomic-writes (`os.replace` after `.tmp`) on first build. The tamper test transcript at `reports/req-013-tamper.md` (gitignored) is the auditor evidence for REQ-013 acceptance bullet 4. This was the headline F-A finding at Step 4d and was closed by populating the manifest from the running analyzer container at Step 4e.
+- **Two-phase startup contract via Behavior B.** Presidio's synchronous `AnalyzerEngineProvider.create_engine()` blocks port-bind until `MultiNlpEngine.load()` returns. A failure exits the process before HTTP serves; the healthcheck never reaches 200 with partial engine state. No `app.py` modification was required — the existing eager-load pattern provides FAIL-002's no-silent-fallback guarantee for free.
+- **Four-bar stopping condition that worked at fixture-add-time.** Under Spec Amendment 2026-05-06 (Option A), all four bars of REQ-006's calibration acceptance protocol held against committed-default thresholds without any value movement. Iteration count: 0. Fixture addition alone satisfied REQ-008 / REQ-009 / REQ-009b.
+- **Asymmetric routing failure-mode flip.** The new German transformer pipeline drops English names in mixed German prose (and vice versa) — the inverse of today's uniform-spaCy-multilingual behavior. Documented in README + `docs/v1-feature-spec.md` + `docs/presidio-integration.md` per REQ-012; one code-switched fixture added at Step 4e (F-M) makes EDGE-001's non-crash assertion explicit.
+
+### Deviations from Original Specification
+
+1. **DE DATE_TIME held-out positive dropped (Option A).** xlm-roberta CoNLL-03 has no DATE label by model design. DE DATE_TIME is regex-only via `DateRecognizer` at 0.6/0.8 ceiling. REQ-006 Bar 2 was rewritten entity-conditional. DE LOCATION held-out positive retained. Documented above in the Amendments section.
+2. **`start_period: 30s` adopted per REQ-014 formula (revised at Step 4e F-D).** Chunk 1B set a placeholder of 90 s; chunk 4 measured 9 s cold-start; Step 4d (critical review F-D) flagged the 90 s as post-hoc rationalization; Step 4e adopted the formula `max(30s, ceil(2 × 9s)) = 30s` and updated `docker-compose.yml`.
+3. **Multi-arch image weight (36.8 GB).** Spec PERF-003 sets no cap; documented for operator awareness. Single-arch build path (`DOCKER_DEFAULT_PLATFORM=linux/arm64`) documented in README per Step 4e F-H.
+4. **Runtime revision forwarding patch in Presidio fork (chunk 4c F-1).** `MultiNlpEngine._build_sub_engine` now forwards per-row `revision` into the sub-engine's `models[]` row; `TransformersNlpEngine.load()` injects it into `hf_token_pipe`'s `pipe_config["revision"]`. Wrapped in `# === redakt: ... ===` markers per upstream-merge convention. Two new unit tests assert the contract.
+
+No other deviations.
+
+---
+
 ## Implementation Notes
 
 ### Suggested implementation order
