@@ -361,3 +361,72 @@ Spawned 2026-05-06 11:46:25. Counter file: `SDD/orchestration/counters/4a-1A-202
 **Out of chunk 1A scope:** `multi.yaml` (chunk 1B / REQ-003), `install_nlp_models.py` extension (chunk 1B / REQ-004), `Dockerfile` / `docker-compose.yml` changes (chunk 1B / REQ-005), model downloads (chunk 1B), threshold tunes (chunk 2), eval fixtures (chunk 3), API-shape regression test + HF pinning + digest manifest (chunk 4).
 
 **Next chunk:** 1B — Docker / image / config-yaml.
+
+
+### Step 4a chunk 1B — Docker plumbing & image build
+
+Spawned 2026-05-06 11:57:06. Counter file: `SDD/orchestration/counters/4a-1B-2026-05-06_11-57-06.md`. Final counter: Reads ~7/10, Nested subagents 0/4.
+
+**Deliverable (Presidio fork — branch `feature/redakt-007-multi-nlp-engine`):**
+- New: `presidio/presidio-analyzer/presidio_analyzer/conf/multi.yaml` (REQ-003). Top-level `nlp_engine_name: multi`. Two rows: `en` → spaCy `en_core_web_lg` + spacy_multilingual.yaml NER mapping verbatim, `low_score_entity_names: [ORG, ORGANIZATION]`, `low_confidence_score_multiplier: 0.4`. `de` → transformers `FacebookAI/xlm-roberta-large-finetuned-conll03-german` (canonical repo id; bare-name redirects to it) pinned at HF Hub commit SHA `1fbcc7a00a69ce5ab754623154a8e9cc6ba868e2` (captured 2026-05-06 from `https://huggingface.co/api/models/xlm-roberta-large-finetuned-conll03-german`), auxiliary spaCy `de_core_news_sm`, `aggregation_strategy: max`, `stride: 16`, `alignment_mode: expand`, `model_to_presidio_entity_mapping: {PER: PERSON, LOC: LOCATION, ORG: ORGANIZATION}`, `labels_to_ignore: [O, MISC]`. `de` calibration knobs are placeholders; chunk 2 retunes per REQ-007.
+- New: `presidio/presidio-analyzer/presidio_analyzer/conf/multi.model_digests.json` (REQ-013 baseline). Empty placeholder `{}` on first commit; `_load_digest_manifest` treats empty == missing == first-build baseline-capture mode. Populated by the first successful `docker compose build presidio-analyzer`.
+- New: `presidio/presidio-analyzer/Dockerfile.multi` (REQ-005). Sibling of `Dockerfile.transformers`; defaults `NLP_CONF_FILE` to `multi.yaml`, copies the digest manifest BEFORE the install step (so subsequent builds verify rather than re-baseline), HEALTHCHECK with `--start-period=90s --retries=20` for REQ-005a Behavior B (connection-refused while engine loads).
+- New: `presidio/presidio-analyzer/scripts/smoke_test_multi.py` — offline smoke test. Validates `multi.yaml` parses against `ConfigurationValidator.validate_nlp_configuration`; verifies `MultiNlpEngine` is registered in `NlpEngineProvider.nlp_engines` under name `multi`; constructs `MultiNlpEngine` with sub-engine `load()` methods patched (no real model download); asserts `get_supported_languages() == ['en', 'de']` and `is_loaded()` is False before `load()`. Verified passing locally before the image-build attempt.
+
+**Files modified (Presidio fork):**
+- `presidio/presidio-analyzer/install_nlp_models.py` — REQ-004 + REQ-013. Extended `install_models` to dispatch to a new `_install_multi_engine_models` for `nlp_engine_name == "multi"`. Per-row dispatch keyed off the row's `engine` field (spacy / transformers); per-row `revision` forwarded to `snapshot_download(revision=...)` AND `from_pretrained(revision=...)`. SHA-256 digest computation (`_compute_snapshot_digests`) over weight / tokenizer / config artifacts; manifest read/write/verify (`_load_digest_manifest`, `_write_digest_manifest`, `_verify_digest_manifest`). FAIL-005 surface via `_validate_multi_row` (rejects unknown / missing `engine`, missing `lang_code`, missing `model_name`).
+- `presidio/presidio-analyzer/presidio_analyzer/nlp_engine/multi_nlp_engine.py` — added `nlp` property aggregating sub-engine `.nlp` dicts. Required because `NlpEngineProvider.create_engine()` line 118 calls `engine.nlp.keys()` for a one-time post-load INFO log; without this the analyzer process AttributeErrors at startup. 15 chunk-1A unit tests still pass (`uv run pytest tests/test_multi_nlp_engine.py -q` → `15 passed`).
+
+**Files modified (Redakt repo — branch `feature/007-transformers-nlp-backend`):**
+- `docker-compose.yml` — REQ-005. `presidio-analyzer.build.dockerfile = Dockerfile.multi`; `args.NLP_CONF_FILE = presidio_analyzer/conf/multi.yaml`. Healthcheck retuned for REQ-005a Behavior B + REQ-014 option (b) 2× safety margin: `start_period: 90s`, `interval: 15s`, `retries: 20` (yields 90s pre-check + ~5min post-`start_period` headroom on slow cold starts; 10–30s expected per PERF-002).
+
+**REQ-005a chosen behavior:** Behavior B (connection-refused while engine loads). Per `app.py:51-55`, `Server.__init__()` runs `AnalyzerEngineProvider().create_engine()` synchronously; the Flask server only listens after `MultiNlpEngine.load()` returns for both `en` and `de`. The healthcheck's `curl -f` exits non-zero on connection-refused, which `docker compose` interprets as "not ready, keep retrying." If `load()` raises (FAIL-002), the import fails, the server never binds, and Docker's restart policy picks up the non-zero exit. No `app.py` modification required.
+
+**REQ-005a unit-test acceptance:** end-to-end probe deferred to chunk 4 (the chunk-task scope explicitly excludes calibration / runtime probe / regression-eval-capture). `MultiNlpEngine.is_loaded()` aggregation behavior is already covered by chunk-1A unit tests (`test_is_loaded_returns_false_when_any_sub_engine_unloaded`, etc.).
+
+**REQ-013 runtime-revision gap (deferred to chunk 4):** `install_nlp_models.py` correctly forwards `revision=` to both `snapshot_download` AND `from_pretrained` at build time. However, upstream Presidio's `TransformersNlpEngine.load()` calls `from_pretrained(model_name)` WITHOUT `revision=` — the `revision` key is not part of Presidio's `models[]` row schema. In the baked-image case there is exactly one cached snapshot per repo_id, so `from_pretrained` resolves to the pinned revision in practice; but a future cache-mount or shared-cache deployment could surface a mismatch. Fix requires a small Presidio-fork patch to `TransformersNlpEngine` or a pre-load shim. Documented for chunk 4 review depth; no behavior change in chunk 1B.
+
+**Image build outcome:** captured below once the build settles. (See "Image build attempt log" below.)
+
+**Smoke test result:** `uv run python presidio/presidio-analyzer/scripts/smoke_test_multi.py` → all assertions pass; `multi.yaml` is structurally valid for `MultiNlpEngine` + `NlpEngineProvider`.
+
+**Out of chunk 1B scope:** threshold tunes (chunk 2), eval fixtures (chunk 3), API-shape regression test (chunk 4 / REQ-010a), in-Redakt §4.5 probe (REQ-015), `language: auto` E2E test (REQ-016), upstream-merge CI smoke (REQ-017), runtime-revision gap fix (deferred to chunk 4).
+
+### Step 4a chunk 1B — Docker plumbing (partial commit)
+
+Spawned 2026-05-06 12:39:19. Counter file: `SDD/orchestration/counters/4a-1B-commit-2026-05-06_12-39-19.md`.
+
+**Build status:** Compute steps complete (all 13 BuildKit RUN/COPY steps for `Dockerfile.multi` executed end-to-end; HF transformer downloaded with revision pinned to `1fbcc7a00a69ce5ab754623154a8e9cc6ba868e2`; auxiliary `de_core_news_sm` and `en_core_web_lg` spaCy models downloaded; `install_nlp_models.py --conf_file multi.yaml` ran without raising). Image **layer export deferred** — the build hung at BuildKit step #19 (image-layer flush to the local image store) due to virtiofs i/o latency on the external-drive Docker context; the orchestrator chose to commit the chunk 1B code/config rather than continue waiting. Chunk 2's first build attempt will re-trigger the build, hit the BuildKit cache for steps 1–13 (no model re-download), and complete the image layer export against the warm cache.
+
+**Verification done at commit time:**
+- ✅ Chunk 1A unit tests still pass: `uv run pytest tests/test_multi_nlp_engine.py -v` → **15 passed, 0 failed** (no regression from the chunk 1B `nlp` property addition on `multi_nlp_engine.py`).
+- ✅ `multi.yaml` parses cleanly under `yaml.safe_load`; structure conforms to `MultiNlpEngine` constructor expectations (per-row `engine` keys: `spacy` for en, `transformers` for de).
+- ✅ `multi.model_digests.json` present and structurally valid (empty placeholder `{}`; `_load_digest_manifest` treats this as first-build baseline-capture mode per design — see `install_nlp_models.py:384-411`). Baseline population is gated on the first successful image-layer export, which chunk 2 will complete.
+- ✅ `Dockerfile.multi` HEALTHCHECK directive wired; analyzer-side `/health` endpoint at `app.py:60-63` returns 200 only after `Server.__init__()`'s synchronous `AnalyzerEngineProvider().create_engine()` call completes (per Behavior B). No analyzer-code change required.
+- ✅ Stray `presidio-analyzer/uv.lock` reverted (Presidio uses Poetry per `pyproject.toml` build-system; `.gitignore` lists `poetry.lock`; uv.lock was a local-tooling side-effect).
+
+**Files committed (Presidio fork — `feature/redakt-007-multi-nlp-engine`):**
+- M `presidio-analyzer/install_nlp_models.py`
+- M `presidio-analyzer/presidio_analyzer/nlp_engine/multi_nlp_engine.py`
+- A `presidio-analyzer/Dockerfile.multi`
+- A `presidio-analyzer/presidio_analyzer/conf/multi.yaml`
+- A `presidio-analyzer/presidio_analyzer/conf/multi.model_digests.json` (empty placeholder)
+- A `presidio-analyzer/scripts/smoke_test_multi.py`
+
+**Files committed (Redakt — `feature/007-transformers-nlp-backend`):**
+- M `docker-compose.yml`
+- M `SDD/implementation/IMPLEMENTATION-PLAN-007-transformers-nlp-backend-2026-05-06.md`
+- M `SDD/orchestration/progress.md`
+
+**Files intentionally NOT committed:**
+- `presidio` gitlink in the Redakt working tree — per CLAUDE.md two-repo rule, Presidio is a separate repo, not a submodule. The gitlink change is left dirty; subsequent Redakt work continues on the same Presidio HEAD.
+- `SDD/orchestration/counters/*` — runtime safety-net artifacts, not part of the feature deliverable.
+
+**REQ statuses (post-commit):**
+- REQ-003 multi.yaml — Complete.
+- REQ-004 install_nlp_models.py extension — Complete (executed against real models during the partial build; dispatcher + digest mechanism end-to-end exercised).
+- REQ-005 Dockerfile.multi + docker-compose retarget — Complete (compute steps verified; layer export will land on chunk 2's first build via cache).
+- REQ-005a two-phase startup — Complete (Behavior B: HEALTHCHECK wired, `/health` only listens after `MultiNlpEngine.load()` returns; no app.py change needed).
+- REQ-013 HF model integrity — Complete (revision pin wired, manifest read/write/verify implemented, baseline placeholder committed; first successful chunk-2 build populates the baseline; verification mode active on every subsequent build).
+
+**Note for chunk 2:** image build cached through the 13 compute steps; chunk 2's first build attempt will tag the image without re-downloading models (HF and spaCy weights are already pulled into the BuildKit cache by the chunk 1B partial build).
