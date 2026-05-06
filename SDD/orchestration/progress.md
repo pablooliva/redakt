@@ -340,3 +340,24 @@ Spawned 2026-05-06 11:30:27. Counter file: `SDD/orchestration/counters/3e-1-2026
 **Frontmatter unchanged:** `review_panel`, `eval_required`, `cross_cutting_decisions`, `delivery_mode` all preserved verbatim.
 
 No code changes, no commits.
+
+
+### Step 4a chunk 1A — Engine class implementation
+
+Spawned 2026-05-06 11:46:25. Counter file: `SDD/orchestration/counters/4a-1A-2026-05-06_11-46-25.md`. Final counter: Reads 10/10, Nested subagents 0/4.
+
+**Deliverable (Presidio fork):**
+- New: `presidio/presidio-analyzer/presidio_analyzer/nlp_engine/multi_nlp_engine.py` — `MultiNlpEngine` (NlpEngine subclass, ~285 LOC). Per-language sub-engine map keyed by `lang_code`; dispatches `process_text(text, language)` and `process_batch(...)` to the configured sub-engine; `is_loaded()` aggregates across sub-engines (REQ-005a partial-load = False); model-load-once invariant enforced (constructor builds sub-engines, `load()` may be called exactly once, second call raises `RuntimeError`, `process_text` before `load()` raises, no lazy-load on the request path); FAIL-003 unsupported language raises `ValueError` with clear message. Wrapped in `# === redakt: MultiNlpEngine ===` markers per Implementation Constraints.
+- New: `presidio/presidio-analyzer/tests/test_multi_nlp_engine.py` — 15 unit tests, all passing. Mock-only (no real spaCy / HF model load). Coverage: dispatch routing (en vs de), `is_loaded()` aggregation (False until loaded; False if any sub-engine unloaded), model-load-once invariant (3 tests), constructor validation (empty models, unknown engine, missing engine key, duplicate lang_code), `get_supported_languages` / `get_supported_entities`, `is_stopword` / `is_punct` dispatch, engine-name registration with `NlpEngineProvider`.
+- Modified: `presidio/presidio-analyzer/presidio_analyzer/nlp_engine/__init__.py` — exported `MultiNlpEngine`.
+- Modified: `presidio/presidio-analyzer/presidio_analyzer/nlp_engine/nlp_engine_provider.py` — registered `MultiNlpEngine` in the default `nlp_engines` tuple. Engine name `multi` is now selectable via the existing YAML config schema (REQ-002 acceptance partial — full YAML construction validated in chunk 1B).
+- Modified: `presidio/presidio-analyzer/tests/conftest.py` — added `multi` branch (continue) in the session-scoped `nlp_engines` fixture. Without this, every existing test would fail at collection time once `MultiNlpEngine` joined `provider.nlp_engines`. The skip is correct because the fixtures per-engine instantiation pattern (single-row spaCy / single-row transformers) doesnt fit `MultiNlpEngine`s per-row sub-engine config shape; `MultiNlpEngine` has its own dedicated test module.
+
+**Deliverable (Redakt repo):**
+- New: `SDD/implementation/IMPLEMENTATION-PLAN-007-transformers-nlp-backend-2026-05-06.md` — chunk 1A is the first to populate this tracker. Specification Alignment checklist initialized with all 21 REQ + 8 EDGE + 6 FAIL items. REQ-001 and REQ-002 marked Complete; FAIL-003 noted as partially covered (unit-test scope). All other items remain Not Started.
+
+**Tests run:** `uv run pytest tests/test_multi_nlp_engine.py -v` from `presidio/presidio-analyzer/`. Result: **15 passed, 0 failed.**
+
+**Out of chunk 1A scope:** `multi.yaml` (chunk 1B / REQ-003), `install_nlp_models.py` extension (chunk 1B / REQ-004), `Dockerfile` / `docker-compose.yml` changes (chunk 1B / REQ-005), model downloads (chunk 1B), threshold tunes (chunk 2), eval fixtures (chunk 3), API-shape regression test + HF pinning + digest manifest (chunk 4).
+
+**Next chunk:** 1B — Docker / image / config-yaml.
