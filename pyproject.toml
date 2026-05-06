@@ -27,6 +27,7 @@ dev = [
     "pytest-playwright>=0.7",
     "httpx>=0.28",
     "ruff>=0.9",
+    "pyyaml>=6.0",
 ]
 
 [build-system]
@@ -39,10 +40,10 @@ packages = ["src/redakt"]
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]
-# E2E tests are excluded by default — they need Presidio running.
-# Run them explicitly: uv run pytest tests/e2e/
-# Or with browser visible: uv run pytest tests/e2e/ --headed
-addopts = "--ignore=tests/e2e"
+# E2E and eval tests are excluded by default — they need Presidio running.
+# Run E2E:        uv run pytest tests/e2e/
+# Run eval suite: uv run pytest tests/eval/
+addopts = "--ignore=tests/e2e --ignore=tests/eval"
 
 [tool.ruff]
 target-version = "py312"

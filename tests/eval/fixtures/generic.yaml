@@ -1,0 +1,42 @@
+# Generic / multilingual entities — clear, high-signal PII that should always be detected.
+
+- text: "Please email John Smith at john.smith@example.com about the proposal."
+  language: en
+  expect: [PERSON, EMAIL_ADDRESS]
+
+- text: "Contact Maria Rodriguez on +1 415 555 0133."
+  language: en
+  expect: [PERSON, PHONE_NUMBER]
+
+- text: "Send the wire to IBAN GB82 WEST 1234 5698 7654 32."
+  language: en
+  expect: [IBAN_CODE]
+
+- text: "My card number is 4111 1111 1111 1111, expiring 12/27."
+  language: en
+  expect: [CREDIT_CARD]
+
+- text: "Server at 192.168.1.42 went down."
+  language: en
+  expect: [IP_ADDRESS]
+
+- text: "Visit https://internal.acme.example/admin for the dashboard."
+  language: en
+  expect: [URL]
+
+- text: "MAC address 00:1A:2B:3C:4D:5E"
+  language: en
+  expect: [MAC_ADDRESS]
+
+- text: "BTC tip address 1BoatSLRHtKNngkdXEeobR76b53LETtpyT"
+  language: en
+  expect: [CRYPTO]
+
+- text: "Bitte schreiben Sie an Herrn Hans Müller unter hans.mueller@beispiel.de."
+  language: de
+  expect: [PERSON, EMAIL_ADDRESS]
+
+- text: "Anna Schmidt arbeitet bei der Beispiel AG in Berlin."
+  language: de
+  expect: [PERSON]
+  notes: "Bare city alone isn't PII at the default threshold; we want PERSON detected. ORGANIZATION not currently firing on the spaCy German model."

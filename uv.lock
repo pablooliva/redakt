@@ -1,5 +1,5 @@
 version = 1
-revision = 2
+revision = 3
 requires-python = ">=3.12"
 
 [[package]]
@@ -970,6 +970,7 @@ dev = [
     { name = "pytest" },
     { name = "pytest-asyncio" },
     { name = "pytest-playwright" },
+    { name = "pyyaml" },
     { name = "ruff" },
 ]
 
@@ -997,6 +998,7 @@ requires-dist = [
     { name = "pytest-playwright", marker = "extra == 'dev'", specifier = ">=0.7" },
     { name = "python-docx", specifier = ">=1.1" },
     { name = "python-multipart", specifier = ">=0.0.18" },
+    { name = "pyyaml", marker = "extra == 'dev'", specifier = ">=6.0" },
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.9" },
     { name = "striprtf", specifier = ">=0.0.26" },
     { name = "uvicorn", extras = ["standard"], specifier = ">=0.34" },

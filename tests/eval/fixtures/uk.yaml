@@ -1,0 +1,21 @@
+# UK-specific country entities. All requests use language=en.
+
+- text: "NHS number 943 476 5919."
+  language: en
+  expect: [UK_NHS]
+
+- text: "National Insurance number QQ123456C."
+  language: en
+  expect: [UK_NINO]
+
+- text: "UK postcode SW1A 1AA."
+  language: en
+  expect: [UK_POSTCODE]
+
+- text: "Vehicle registration AB12 CDE."
+  language: en
+  expect: [UK_VEHICLE_REGISTRATION]
+
+- text: "British passport number 123456789."
+  language: en
+  expect: [UK_PASSPORT]

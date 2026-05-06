@@ -71,6 +71,8 @@ All endpoints accept `"language": "auto"` (default) or an explicit language code
 | `POST` | `/api/documents/upload` | Upload a file for PII detection/anonymization |
 | `GET` | `/api/health` | Health check (includes Presidio service status) |
 
+See [`docs/supported-entities.md`](docs/supported-entities.md) for the full list of detectable entity types and their language scoping.
+
 ### Example: Detect
 
 ```bash
@@ -100,7 +102,7 @@ Override per request via `entity_score_thresholds`:
 }
 ```
 
-Per-request keys override the instance map; entity types not listed use the global `score_threshold` (0.35 by default). Set the instance-wide map via the `REDAKT_ENTITY_SCORE_THRESHOLDS` env var (JSON-encoded).
+Per-request keys override the instance map; entity types not listed use the global `score_threshold` (0.35 by default). Set the instance-wide map via the `REDAKT_ENTITY_SCORE_THRESHOLDS` env var (JSON-encoded). Valid keys are listed in [`docs/supported-entities.md`](docs/supported-entities.md).
 
 ### Example: Anonymize + Deanonymize Round-Trip
 
@@ -168,6 +170,22 @@ uv run pytest tests/
 
 # E2E browser tests (requires docker compose up)
 uv run pytest tests/e2e/
+
+# PII detection eval suite — end-to-end against the Redakt API.
+# Asserts that current entity_score_thresholds keep benign phrases clean
+# and detect known PII across en/de fixtures. Requires the full Docker
+# Compose stack (Redakt + Presidio) running.
+uv run pytest tests/eval/
+
+# Calibration report (same fixtures, prints scores per phrase — no asserts).
+# Default: shows what Redakt /api/detect returns.
+# --raw: also calls Presidio directly with score_threshold=0 so you can see
+# candidates the per-entity floors filtered out — useful for tuning.
+# --out: also write a Markdown report (default: reports/calibration-{ts}.md,
+# gitignored). Pass --out PATH for a custom destination.
+uv run python tools/calibration_report.py
+uv run python tools/calibration_report.py --raw --only benign,us
+uv run python tools/calibration_report.py --raw --out
 ```
 
 ### Configuration
@@ -179,7 +197,7 @@ Defaults are defined in `src/redakt/config.py`. Set any of the following env var
 | `REDAKT_PRESIDIO_ANALYZER_URL` | `http://localhost:5001` | Presidio Analyzer URL |
 | `REDAKT_PRESIDIO_ANONYMIZER_URL` | `http://localhost:5001` | Presidio Anonymizer URL |
 | `REDAKT_LOG_LEVEL` | `WARNING` | Application log level |
-| `REDAKT_ENTITY_SCORE_THRESHOLDS` | `{"LOCATION": 0.85, "DATE_TIME": 0.95}` | JSON map of per-entity score floors applied after Presidio analysis |
+| `REDAKT_ENTITY_SCORE_THRESHOLDS` | `{"LOCATION": 0.90, "DATE_TIME": 0.95}` | JSON map of per-entity score floors applied after Presidio analysis |
 | `REDAKT_AUDIT_LOG_FILE` | _(empty)_ | Optional file path for audit logs (in addition to stdout) |
 | `REDAKT_AUDIT_LOG_MAX_BYTES` | `10485760` | Max audit log file size before rotation (10 MB) |
 | `REDAKT_AUDIT_LOG_BACKUP_COUNT` | `5` | Number of rotated audit log backups to keep |
