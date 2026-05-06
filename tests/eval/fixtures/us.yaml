@@ -1,0 +1,31 @@
+# US-specific country entities. All requests use language=en.
+
+- text: "My SSN is 536-22-7777."
+  language: en
+  expect: [US_SSN]
+  notes: "Avoid 123-45-6789 / 078-05-1120 / 987-65-4xxx etc — Presidio invalidates known sample SSNs."
+
+- text: "Driver license D1234567 issued in California."
+  language: en
+  expect: [US_DRIVER_LICENSE]
+  notes: "Format varies by state; this is a generic-looking pattern"
+
+- text: "ITIN 912-78-1234 on file."
+  language: en
+  expect: [US_ITIN]
+
+- text: "Routing number 121000248, account 9876543210."
+  language: en
+  expect: [ABA_ROUTING_NUMBER, US_BANK_NUMBER]
+
+- text: "His US passport number is 123456789."
+  language: en
+  expect: [US_PASSPORT]
+
+- text: "Dr. Patel's NPI is 1234567893."
+  language: en
+  expect: [PERSON, US_NPI]
+
+- text: "Medicare ID 1EG4-TE5-MK72."
+  language: en
+  expect: [US_MBI]

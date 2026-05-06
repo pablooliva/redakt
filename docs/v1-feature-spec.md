@@ -169,6 +169,14 @@ Deanonymization happens client-side: the browser replaces `<PERSON_1>` → `John
 - How to handle mixed-language content? (e.g., German text with English names)
 - Should detection run on the full text or a sample?
 
+**Code-switched (mixed-language) text — known limitation.**
+
+The analyzer runs `MultiNlpEngine` with two sub-engines: `en` (spaCy `en_core_web_lg`) and `de` (`xlm-roberta-large-finetuned-conll03-german` for NER, `de_core_news_sm` for tokenization). For each request, exactly one sub-engine handles the entire text — they do not run jointly.
+
+When `language: auto`, lingua-py picks one language from the request body and the matching engine runs. For a paragraph that mixes German and English (e.g., a German email body that quotes an English LLM response), lingua-py picks whichever language scores higher on the snippet as a whole; PII in the non-selected language may be missed. This is an accepted tradeoff per CLARIFICATION-007 Q6 — the previous uniform-spaCy multilingual setup over-flagged both languages' entities, while the new asymmetric routing under-flags the non-selected one.
+
+For mixed-language text, set the `language` parameter explicitly to the language that carries the dominant PII content. Do not rely on `auto`. SPEC-007 EDGE-001 documents the limitation; SPEC-007 EDGE-004 covers the lingua-py mis-detection case (override via explicit `language`).
+
 ---
 
 ### Feature 5: Allow Lists
@@ -203,6 +211,27 @@ In this example, "Acme Corp" and "Berlin" would not be flagged, but "John Smith"
 - Where is the instance-wide allow list stored? (config file, environment variable, mounted volume?)
 - Should there be a UI for managing the instance-wide list, or is it admin-only config?
 - Should allow list support regex patterns or just exact matches for v1?
+
+---
+
+### Feature 5b: Per-Entity Score Thresholds
+
+**User story:** Generic terms like "Munich" or "today" trip `LOCATION`/`DATE_TIME` recognizers at borderline confidence and clutter results, but the same recognizers must still flag full addresses or specific dates when confidence is high.
+
+**Behavior:**
+- An instance-wide map of per-entity floors is configurable via `entity_score_thresholds` (default: `{"LOCATION": 0.90, "DATE_TIME": 0.95}`).
+- A per-request `entity_score_thresholds` field on `/api/detect` and `/api/anonymize` overrides the instance map per key (request key wins).
+- Implemented as a post-filter on Presidio's analyzer response: results whose `entity_type` has a floor and whose `score` is below it are dropped before the response is built. Entity types not in the map are unaffected (the global `score_threshold` still applies).
+- Floors only raise the bar above `score_threshold`. To pass a result through that the floor would otherwise drop, set the per-request override to a lower value (e.g. `0.0` to disable for that entity in that request).
+
+**Example request:**
+```json
+{
+  "text": "John Smith was in Munich today",
+  "entity_score_thresholds": {"LOCATION": 0.5}
+}
+```
+With the default `DATE_TIME: 0.95` still in force, "today" stays filtered; the lowered `LOCATION` floor lets borderline city matches through.
 
 ---
 

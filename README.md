@@ -2,6 +2,8 @@
 
 Open-source PII detection and anonymization wrapper around [Microsoft Presidio](https://github.com/microsoft/presidio). Web UI and REST API for GDPR-compliant redaction before pasting content into LLMs. Designed for enterprise internal deployment.
 
+Read the launch announcement - [Meet Redakt: Practical GDPR Compliance for AI Teams](https://pablooliva.de/the-closing-window/meet-redakt-practical-gdpr-compliance-for-ai-teams/)
+
 ## What It Does
 
 1. **Detect PII** — Send text, get back whether it contains personal data (with entity types and counts)
@@ -57,9 +59,38 @@ docker compose up --build
 
 Open [http://localhost:8000](http://localhost:8000) for the web UI.
 
+**Single-arch build (recommended).** On macOS / Apple Silicon hosts,
+buildx may default to producing a multi-arch image stack that inflates
+the analyzer image to ~36 GB uncompressed (the German transformer
+weights + spaCy lemma surfaces are duplicated across `linux/amd64` and
+`linux/arm64` layers). For local dev, force a single-arch build:
+
+```bash
+DOCKER_DEFAULT_PLATFORM=linux/arm64 docker compose up --build
+# or, on x86_64 hosts:
+DOCKER_DEFAULT_PLATFORM=linux/amd64 docker compose up --build
+```
+
+Single-arch builds typically land at ~10–15 GB uncompressed. Spec ref:
+SPEC-007 PERF-003 (image size is documentation-only; this is operator
+guidance, not a hard cap).
+
+**Hugging Face token (optional, build-time).** The analyzer image
+fetches the German transformer weights from Hugging Face during the
+build. Anonymous fetches are subject to HF Hub rate limits (RISK-001).
+To pass a token without leaking it into an image layer, use BuildKit
+secrets. Token plumbing is operator-hand-rolled and not part of the
+default build path; if you hit `HTTP 429`, configure `HF_TOKEN` /
+`HUGGINGFACE_HUB_TOKEN` in your environment and pass it through
+`docker buildx build --secret id=hf_token,env=HUGGINGFACE_HUB_TOKEN ...`
+with a corresponding `--mount=type=secret,id=hf_token` in
+`Dockerfile.multi`.
+
 ## API
 
 All endpoints accept `"language": "auto"` (default) or an explicit language code. All endpoints respect allow lists and are audit-logged.
+
+> **Code-switched (mixed-language) text.** Auto-detection uses [lingua-py](https://github.com/pemistahl/lingua-py); whichever of `en` / `de` wins the vote drives the NLP engine for the entire request. For text that mixes both languages, set `language` explicitly to the language whose PII you most need detected. PII in the non-selected language may be missed. See `docs/presidio-integration.md` and SPEC-007 EDGE-001 for details.
 
 | Method | Path | Description |
 |--------|------|-------------|
@@ -68,6 +99,8 @@ All endpoints accept `"language": "auto"` (default) or an explicit language code
 | `POST` | `/api/deanonymize` | Restore original values from placeholders + mapping |
 | `POST` | `/api/documents/upload` | Upload a file for PII detection/anonymization |
 | `GET` | `/api/health` | Health check (includes Presidio service status) |
+
+See [`docs/supported-entities.md`](docs/supported-entities.md) for the full list of detectable entity types and their language scoping.
 
 ### Example: Detect
 
@@ -84,6 +117,21 @@ curl -X POST http://localhost:8000/api/detect \
   "entities_found": ["LOCATION", "PERSON"]
 }
 ```
+
+### Tuning sensitivity per entity type
+
+Some recognizers (notably `LOCATION` and `DATE_TIME`) fire at borderline confidence on generic terms like "Munich" or "today." Redakt applies an instance-wide map of per-entity score floors after Presidio returns; results below an entity's floor are dropped. Defaults: `LOCATION: 0.85`, `DATE_TIME: 0.95`.
+
+Override per request via `entity_score_thresholds`:
+
+```json
+{
+  "text": "John Smith was in Munich today",
+  "entity_score_thresholds": {"LOCATION": 0.5}
+}
+```
+
+Per-request keys override the instance map; entity types not listed use the global `score_threshold` (0.35 by default). Set the instance-wide map via the `REDAKT_ENTITY_SCORE_THRESHOLDS` env var (JSON-encoded). Valid keys are listed in [`docs/supported-entities.md`](docs/supported-entities.md).
 
 ### Example: Anonymize + Deanonymize Round-Trip
 
@@ -151,15 +199,34 @@ uv run pytest tests/
 
 # E2E browser tests (requires docker compose up)
 uv run pytest tests/e2e/
+
+# PII detection eval suite — end-to-end against the Redakt API.
+# Asserts that current entity_score_thresholds keep benign phrases clean
+# and detect known PII across en/de fixtures. Requires the full Docker
+# Compose stack (Redakt + Presidio) running.
+uv run pytest tests/eval/
+
+# Calibration report (same fixtures, prints scores per phrase — no asserts).
+# Default: shows what Redakt /api/detect returns.
+# --raw: also calls Presidio directly with score_threshold=0 so you can see
+# candidates the per-entity floors filtered out — useful for tuning.
+# --out: also write a Markdown report (default: reports/calibration-{ts}.md,
+# gitignored). Pass --out PATH for a custom destination.
+uv run python tools/calibration_report.py
+uv run python tools/calibration_report.py --raw --only benign,us
+uv run python tools/calibration_report.py --raw --out
 ```
 
 ### Configuration
+
+Defaults are defined in `src/redakt/config.py`. Set any of the following env vars (or place them in a `.env` file — see `.env.example`) to override at startup.
 
 | Environment Variable | Default | Description |
 |---------------------|---------|-------------|
 | `REDAKT_PRESIDIO_ANALYZER_URL` | `http://localhost:5001` | Presidio Analyzer URL |
 | `REDAKT_PRESIDIO_ANONYMIZER_URL` | `http://localhost:5001` | Presidio Anonymizer URL |
 | `REDAKT_LOG_LEVEL` | `WARNING` | Application log level |
+| `REDAKT_ENTITY_SCORE_THRESHOLDS` | `{"LOCATION": 0.90, "DATE_TIME": 0.95}` | JSON map of per-entity score floors applied after Presidio analysis |
 | `REDAKT_AUDIT_LOG_FILE` | _(empty)_ | Optional file path for audit logs (in addition to stdout) |
 | `REDAKT_AUDIT_LOG_MAX_BYTES` | `10485760` | Max audit log file size before rotation (10 MB) |
 | `REDAKT_AUDIT_LOG_BACKUP_COUNT` | `5` | Number of rotated audit log backups to keep |

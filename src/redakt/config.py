@@ -11,6 +11,7 @@ class Settings(BaseSettings):
     presidio_analyzer_url: str = "http://localhost:5001"
     presidio_anonymizer_url: str = "http://localhost:5001"
     default_score_threshold: float = 0.35
+    entity_score_thresholds: dict[str, float] = {"LOCATION": 0.90, "DATE_TIME": 0.95}
     default_language: str = "auto"
     supported_languages: list[str] = ["en", "de"]
     allow_list: list[str] = []
@@ -36,7 +37,13 @@ class Settings(BaseSettings):
     max_concurrent_uploads: int = 3
     max_xlsx_cells: int = 50_000
 
-    model_config = {"env_prefix": "REDAKT_", "env_nested_delimiter": "__"}
+    model_config = {
+        "env_prefix": "REDAKT_",
+        "env_nested_delimiter": "__",
+        "env_file": ".env",
+        "env_file_encoding": "utf-8",
+        "extra": "ignore",
+    }
 
 
 settings = Settings()

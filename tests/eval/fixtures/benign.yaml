@@ -1,0 +1,54 @@
+# PII-free phrases that should produce zero entities after Redakt's post-filter.
+# Many of these previously over-triggered LOCATION/DATE_TIME at the global 0.35 threshold.
+
+- text: "What is the weather in Munich today?"
+  language: en
+  expect_clean: true
+  notes: "Original motivating case — generic city + generic temporal"
+
+- text: "How hot is it in Paris this afternoon?"
+  language: en
+  expect_clean: true
+  notes: "Generic city + relative time"
+
+- text: "I'm thinking of going hiking next weekend."
+  language: en
+  expect_clean: true
+  notes: "Relative date should not be PII"
+
+- text: "Can you summarize this article for me?"
+  language: en
+  expect_clean: true
+  notes: "Pure conversational"
+
+- text: "What time is it in Tokyo?"
+  language: en
+  expect_clean: true
+  notes: "Generic city, no individual"
+
+- text: "Compare these two pricing plans and tell me which is better."
+  language: en
+  expect_clean: true
+
+- text: "Write a Python function that returns the Fibonacci sequence."
+  language: en
+  expect_clean: true
+  notes: "Code task; no PII"
+
+- text: "Explain how transformers work in machine learning."
+  language: en
+  expect_clean: true
+
+- text: "Wie ist das Wetter heute in München?"
+  language: de
+  expect_clean: true
+  notes: "German equivalent of the motivating case"
+
+- text: "Kannst du mir bei einem Code-Review helfen?"
+  language: de
+  expect_clean: true
+
+- text: "Was kostet ein Kaffee in Berlin?"
+  language: de
+  expect_clean: true
+  notes: "German generic city question"

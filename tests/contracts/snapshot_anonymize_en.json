@@ -1,0 +1,8 @@
+{
+  "anonymized_text": "<PERSON_1> works at Acme Corp.",
+  "language_confidence": null,
+  "language_detected": "en",
+  "mappings": {
+    "<PERSON_1>": "John Smith"
+  }
+}

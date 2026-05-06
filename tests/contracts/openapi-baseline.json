@@ -1,0 +1,1097 @@
+{
+  "components": {
+    "schemas": {
+      "AnonymizeRequest": {
+        "properties": {
+          "allow_list": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Allow List"
+          },
+          "entities": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Entities"
+          },
+          "entity_score_thresholds": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "number"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Entity Score Thresholds"
+          },
+          "language": {
+            "default": "auto",
+            "title": "Language",
+            "type": "string"
+          },
+          "score_threshold": {
+            "anyOf": [
+              {
+                "maximum": 1.0,
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Score Threshold"
+          },
+          "text": {
+            "maxLength": 512000,
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "text"
+        ],
+        "title": "AnonymizeRequest",
+        "type": "object"
+      },
+      "AnonymizeResponse": {
+        "properties": {
+          "anonymized_text": {
+            "title": "Anonymized Text",
+            "type": "string"
+          },
+          "language_confidence": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Language Confidence"
+          },
+          "language_detected": {
+            "title": "Language Detected",
+            "type": "string"
+          },
+          "mappings": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Mappings",
+            "type": "object"
+          }
+        },
+        "required": [
+          "anonymized_text",
+          "mappings",
+          "language_detected"
+        ],
+        "title": "AnonymizeResponse",
+        "type": "object"
+      },
+      "Body_anonymize_submit_anonymize_submit_post": {
+        "properties": {
+          "allow_list": {
+            "default": "",
+            "title": "Allow List",
+            "type": "string"
+          },
+          "language": {
+            "default": "auto",
+            "title": "Language",
+            "type": "string"
+          },
+          "text": {
+            "default": "",
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "title": "Body_anonymize_submit_anonymize_submit_post",
+        "type": "object"
+      },
+      "Body_detect_submit_detect_submit_post": {
+        "properties": {
+          "allow_list": {
+            "default": "",
+            "title": "Allow List",
+            "type": "string"
+          },
+          "language": {
+            "default": "auto",
+            "title": "Language",
+            "type": "string"
+          },
+          "text": {
+            "default": "",
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "title": "Body_detect_submit_detect_submit_post",
+        "type": "object"
+      },
+      "Body_documents_submit_documents_submit_post": {
+        "properties": {
+          "allow_list": {
+            "default": "",
+            "title": "Allow List",
+            "type": "string"
+          },
+          "file": {
+            "contentMediaType": "application/octet-stream",
+            "title": "File",
+            "type": "string"
+          },
+          "language": {
+            "default": "auto",
+            "title": "Language",
+            "type": "string"
+          }
+        },
+        "required": [
+          "file"
+        ],
+        "title": "Body_documents_submit_documents_submit_post",
+        "type": "object"
+      },
+      "Body_upload_document_api_documents_upload_post": {
+        "properties": {
+          "allow_list": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Allow List"
+          },
+          "entities": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Entities"
+          },
+          "file": {
+            "contentMediaType": "application/octet-stream",
+            "title": "File",
+            "type": "string"
+          },
+          "language": {
+            "default": "auto",
+            "title": "Language",
+            "type": "string"
+          },
+          "score_threshold": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Score Threshold"
+          }
+        },
+        "required": [
+          "file"
+        ],
+        "title": "Body_upload_document_api_documents_upload_post",
+        "type": "object"
+      },
+      "DeanonymizeRequest": {
+        "properties": {
+          "mappings": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "Placeholder-to-original mapping returned by /api/anonymize",
+            "title": "Mappings",
+            "type": "object"
+          },
+          "text": {
+            "maxLength": 512000,
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "text",
+          "mappings"
+        ],
+        "title": "DeanonymizeRequest",
+        "type": "object"
+      },
+      "DeanonymizeResponse": {
+        "properties": {
+          "replacements_made": {
+            "title": "Replacements Made",
+            "type": "integer"
+          },
+          "text": {
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "text",
+          "replacements_made"
+        ],
+        "title": "DeanonymizeResponse",
+        "type": "object"
+      },
+      "DetectDetailedResponse": {
+        "properties": {
+          "details": {
+            "items": {
+              "$ref": "#/components/schemas/EntityDetail"
+            },
+            "title": "Details",
+            "type": "array"
+          },
+          "entities_found": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Entities Found",
+            "type": "array"
+          },
+          "entity_count": {
+            "title": "Entity Count",
+            "type": "integer"
+          },
+          "has_pii": {
+            "title": "Has Pii",
+            "type": "boolean"
+          },
+          "language_confidence": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Language Confidence"
+          },
+          "language_detected": {
+            "title": "Language Detected",
+            "type": "string"
+          }
+        },
+        "required": [
+          "has_pii",
+          "entity_count",
+          "entities_found",
+          "language_detected",
+          "details"
+        ],
+        "title": "DetectDetailedResponse",
+        "type": "object"
+      },
+      "DetectRequest": {
+        "properties": {
+          "allow_list": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Allow List"
+          },
+          "entities": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Entities"
+          },
+          "entity_score_thresholds": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "number"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Entity Score Thresholds"
+          },
+          "language": {
+            "default": "auto",
+            "title": "Language",
+            "type": "string"
+          },
+          "score_threshold": {
+            "anyOf": [
+              {
+                "maximum": 1.0,
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Score Threshold"
+          },
+          "text": {
+            "maxLength": 512000,
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "text"
+        ],
+        "title": "DetectRequest",
+        "type": "object"
+      },
+      "DetectResponse": {
+        "properties": {
+          "entities_found": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Entities Found",
+            "type": "array"
+          },
+          "entity_count": {
+            "title": "Entity Count",
+            "type": "integer"
+          },
+          "has_pii": {
+            "title": "Has Pii",
+            "type": "boolean"
+          },
+          "language_confidence": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Language Confidence"
+          },
+          "language_detected": {
+            "title": "Language Detected",
+            "type": "string"
+          }
+        },
+        "required": [
+          "has_pii",
+          "entity_count",
+          "entities_found",
+          "language_detected"
+        ],
+        "title": "DetectResponse",
+        "type": "object"
+      },
+      "DocumentMetadata": {
+        "properties": {
+          "cells_processed": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cells Processed"
+          },
+          "chunks_analyzed": {
+            "title": "Chunks Analyzed",
+            "type": "integer"
+          },
+          "file_size_bytes": {
+            "title": "File Size Bytes",
+            "type": "integer"
+          },
+          "pages_processed": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pages Processed"
+          },
+          "sheets_processed": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sheets Processed"
+          },
+          "warnings": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Warnings",
+            "type": "array"
+          }
+        },
+        "required": [
+          "chunks_analyzed",
+          "file_size_bytes"
+        ],
+        "title": "DocumentMetadata",
+        "type": "object"
+      },
+      "DocumentUploadResponse": {
+        "properties": {
+          "anonymized_content": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Anonymized Content"
+          },
+          "anonymized_structured": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "items": {},
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Anonymized Structured"
+          },
+          "language_confidence": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Confidence score for the detected language. For documents, this reflects the sampled portion (first ~5KB), not the full document.",
+            "title": "Language Confidence"
+          },
+          "language_detected": {
+            "title": "Language Detected",
+            "type": "string"
+          },
+          "mappings": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Mappings",
+            "type": "object"
+          },
+          "metadata": {
+            "$ref": "#/components/schemas/DocumentMetadata"
+          },
+          "source_format": {
+            "title": "Source Format",
+            "type": "string"
+          }
+        },
+        "required": [
+          "mappings",
+          "language_detected",
+          "source_format",
+          "metadata"
+        ],
+        "title": "DocumentUploadResponse",
+        "type": "object"
+      },
+      "EntityDetail": {
+        "properties": {
+          "end": {
+            "title": "End",
+            "type": "integer"
+          },
+          "entity_type": {
+            "title": "Entity Type",
+            "type": "string"
+          },
+          "score": {
+            "title": "Score",
+            "type": "number"
+          },
+          "start": {
+            "title": "Start",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "entity_type",
+          "start",
+          "end",
+          "score"
+        ],
+        "title": "EntityDetail",
+        "type": "object"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "title": "Detail",
+            "type": "array"
+          }
+        },
+        "title": "HTTPValidationError",
+        "type": "object"
+      },
+      "HealthResponse": {
+        "properties": {
+          "presidio_analyzer": {
+            "title": "Presidio Analyzer",
+            "type": "string"
+          },
+          "presidio_anonymizer": {
+            "title": "Presidio Anonymizer",
+            "type": "string"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status",
+          "presidio_analyzer",
+          "presidio_anonymizer"
+        ],
+        "title": "HealthResponse",
+        "type": "object"
+      },
+      "ValidationError": {
+        "properties": {
+          "ctx": {
+            "title": "Context",
+            "type": "object"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "title": "Location",
+            "type": "array"
+          },
+          "msg": {
+            "title": "Message",
+            "type": "string"
+          },
+          "type": {
+            "title": "Error Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError",
+        "type": "object"
+      }
+    }
+  },
+  "info": {
+    "description": "Enterprise PII detection and anonymization API",
+    "title": "Redakt",
+    "version": "0.1.0"
+  },
+  "openapi": "3.1.0",
+  "paths": {
+    "/anonymize": {
+      "get": {
+        "operationId": "anonymize_page_anonymize_get",
+        "responses": {
+          "200": {
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Anonymize Page",
+        "tags": [
+          "pages"
+        ]
+      }
+    },
+    "/anonymize/submit": {
+      "post": {
+        "operationId": "anonymize_submit_anonymize_submit_post",
+        "requestBody": {
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_anonymize_submit_anonymize_submit_post"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Anonymize Submit",
+        "tags": [
+          "pages"
+        ]
+      }
+    },
+    "/api/anonymize": {
+      "post": {
+        "operationId": "anonymize_api_anonymize_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AnonymizeRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnonymizeResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Anonymize",
+        "tags": [
+          "anonymization"
+        ]
+      }
+    },
+    "/api/deanonymize": {
+      "post": {
+        "operationId": "deanonymize_api_deanonymize_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DeanonymizeRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeanonymizeResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Deanonymize",
+        "tags": [
+          "deanonymization"
+        ]
+      }
+    },
+    "/api/detect": {
+      "post": {
+        "operationId": "detect_pii_api_detect_post",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "verbose",
+            "required": false,
+            "schema": {
+              "default": false,
+              "title": "Verbose",
+              "type": "boolean"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DetectRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/DetectResponse"
+                    },
+                    {
+                      "$ref": "#/components/schemas/DetectDetailedResponse"
+                    }
+                  ],
+                  "title": "Response Detect Pii Api Detect Post"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Detect Pii",
+        "tags": [
+          "detection"
+        ]
+      }
+    },
+    "/api/documents/upload": {
+      "post": {
+        "description": "Upload a document for PII anonymization.",
+        "operationId": "upload_document_api_documents_upload_post",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_upload_document_api_documents_upload_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DocumentUploadResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Upload Document",
+        "tags": [
+          "documents"
+        ]
+      }
+    },
+    "/api/health": {
+      "get": {
+        "description": "Readiness probe \u2014 checks Presidio connectivity.",
+        "operationId": "health_check_api_health_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Health Check",
+        "tags": [
+          "health"
+        ]
+      }
+    },
+    "/api/health/live": {
+      "get": {
+        "description": "Liveness probe \u2014 always returns 200 if the process is running.",
+        "operationId": "liveness_api_health_live_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Liveness Api Health Live Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Liveness",
+        "tags": [
+          "health"
+        ]
+      }
+    },
+    "/detect": {
+      "get": {
+        "operationId": "detect_page_detect_get",
+        "responses": {
+          "200": {
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Detect Page",
+        "tags": [
+          "pages"
+        ]
+      }
+    },
+    "/detect/submit": {
+      "post": {
+        "operationId": "detect_submit_detect_submit_post",
+        "requestBody": {
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_detect_submit_detect_submit_post"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Detect Submit",
+        "tags": [
+          "pages"
+        ]
+      }
+    },
+    "/documents": {
+      "get": {
+        "operationId": "documents_page_documents_get",
+        "responses": {
+          "200": {
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Documents Page",
+        "tags": [
+          "pages"
+        ]
+      }
+    },
+    "/documents/submit": {
+      "post": {
+        "operationId": "documents_submit_documents_submit_post",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_documents_submit_documents_submit_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Documents Submit",
+        "tags": [
+          "pages"
+        ]
+      }
+    }
+  }
+}

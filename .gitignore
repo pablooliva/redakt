@@ -1,4 +1,10 @@
 GDPR Data Anonymizer.url
 __pycache__/
 scratch.md
+.env
+.env.local
+reports/
+.claude/
+.idea
+.DS_Store
 .DS_Store

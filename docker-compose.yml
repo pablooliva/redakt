@@ -18,17 +18,35 @@ services:
         condition: service_healthy
 
   presidio-analyzer:
+    # SDD-007 REQ-005: built from Dockerfile.multi against the
+    # MultiNlpEngine config. English requests run through spaCy
+    # `en_core_web_lg`; German requests run through the
+    # `xlm-roberta-large-finetuned-conll03-german` transformer.
     build:
       context: ./presidio/presidio-analyzer
+      dockerfile: Dockerfile.multi
       args:
-        - NLP_CONF_FILE=presidio_analyzer/conf/spacy_multilingual.yaml
+        - NLP_CONF_FILE=presidio_analyzer/conf/multi.yaml
     environment:
       - PORT=5001
     healthcheck:
+      # REQ-005a Behavior B (connection-refused while engine loads). The
+      # Presidio analyzer's Flask server only binds AFTER
+      # `MultiNlpEngine.load()` completes for both en and de — until then,
+      # `curl` exits non-zero and compose interprets that as "not ready,
+      # keep retrying."
+      #
+      # SDD-007 4e F-D: `start_period: 30s` adopts REQ-014's formula
+      # `max(30s, ceil(2 × measured_cold_start_seconds))` — measured cold
+      # start was 9s, formula yields max(30, 18) = 30s. The chunk-1B
+      # placeholder was 90s; that is now retired in favor of the
+      # measurement-driven value. `retries: 20 × interval: 15s = 5min` of
+      # post-start_period headroom remains in case a colder-cache
+      # production environment exceeds the 2× margin.
       test: ["CMD", "curl", "-f", "http://localhost:5001/health"]
-      interval: 10s
+      interval: 15s
       timeout: 5s
-      retries: 10
+      retries: 20
       start_period: 30s
 
   presidio-anonymizer:

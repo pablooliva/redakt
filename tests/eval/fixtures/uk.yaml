@@ -1,0 +1,23 @@
+# UK-specific country entities. All requests use language=en.
+
+- text: "NHS number 943 476 5919."
+  language: en
+  expect: [UK_NHS]
+
+- text: "National Insurance number AB123456C."
+  language: en
+  expect: [UK_NINO]
+  notes: "First and second letters must each be valid NINO letters; Q is excluded from both positions."
+
+- text: "UK postcode SW1A 1AA."
+  language: en
+  expect: [UK_POSTCODE]
+
+- text: "Vehicle registration AB12 CDE."
+  language: en
+  expect: [UK_VEHICLE_REGISTRATION]
+
+- text: "British passport number GB1234567."
+  language: en
+  expect: [UK_PASSPORT]
+  notes: "Presidio's UK_PASSPORT regex is [A-Z]{2}\\d{7} — real UK passports are 9 digits, but the recognizer expects this shape."

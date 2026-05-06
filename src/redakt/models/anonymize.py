@@ -7,6 +7,7 @@ class AnonymizeRequest(BaseModel):
     score_threshold: float | None = Field(default=None, ge=0.0, le=1.0)
     entities: list[str] | None = None
     allow_list: list[str] | None = None
+    entity_score_thresholds: dict[str, float] | None = None
 
 
 class AnonymizeResponse(BaseModel):

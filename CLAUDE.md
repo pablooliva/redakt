@@ -52,11 +52,20 @@ uv run pytest tests/e2e/
 
 # E2E with visible browser
 uv run pytest tests/e2e/ --headed
+
+# PII detection eval suite — end-to-end via Redakt API
+uv run pytest tests/eval/
+
+# Calibration report — defaults to Redakt; --raw also hits Presidio directly;
+# --out [PATH] also writes a Markdown report (default: reports/, gitignored)
+uv run python tools/calibration_report.py
+uv run python tools/calibration_report.py --raw --out
 ```
 
 - Unit/integration tests use FastAPI's TestClient with mocked Presidio — no real services needed.
 - E2E tests use Playwright (Chromium) against the real Docker Compose stack on `localhost:8000`.
-- E2E tests are excluded from `uv run pytest tests/` by default (`--ignore=tests/e2e` in pyproject.toml).
+- Eval tests hit Redakt's `/api/detect?verbose=true` (default `localhost:8000`) so the assertions exercise the real request path including `entity_score_thresholds`, allow lists, and language handling. Fixtures live in `tests/eval/fixtures/*.yaml`. The calibration CLI's `--raw` flag additionally hits Presidio Analyzer directly to show pre-filter candidate scores for tuning.
+- E2E and eval tests are excluded from `uv run pytest tests/` by default (`--ignore=tests/e2e --ignore=tests/eval` in pyproject.toml).
 - When implementing features with browser-facing behavior (JS, HTMX, CSP, client-side logic, multi-step UI flows), add E2E tests in `tests/e2e/`.
 - E2E tests use real Presidio NLP — test data must account for real detection (not mocked).
 

@@ -1,0 +1,26 @@
+# Redakt → Presidio fork pinning record
+#
+# This file records which Presidio fork branch + commit SHA range the
+# Redakt repo is paired with. It exists to give cross-repo traceability
+# without requiring a git submodule (CLAUDE.md: `presidio/` is a fork
+# checkout, not a submodule). When a Redakt commit assumes specific
+# fork-side behavior, the corresponding fork SHA(s) MUST appear here so
+# a future bisect across either repo can recover the pairing.
+#
+# Format:
+#   feature: <SDD feature ID>
+#   branch:  <fork branch name>
+#   commits: <oldest-fork-SHA>..<newest-fork-SHA>  (range, inclusive)
+#   notes:   <one-line rationale>
+#
+# Update this file in the same Redakt commit that lands a fork-side
+# change. If a fork commit is amended or rebased, update the SHA here
+# too (keeps the pairing intact).
+
+feature: 007 (transformers-nlp-backend)
+branch:  feature/redakt-007-multi-nlp-engine
+commits: 1070180..4573133
+notes:   MultiNlpEngine + multi.yaml + Dockerfile.multi + revision pin
+         (chunks 1A, 1B, 5, 4c). 4e adds populated digest manifest +
+         tamper test + atomic manifest write + retry-after-failure +
+         schema validator annotation.
