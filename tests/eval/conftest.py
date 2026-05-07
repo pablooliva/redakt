@@ -18,9 +18,14 @@ import pytest
 REDAKT_URL = os.environ.get("REDAKT_URL", "http://localhost:8000")
 
 
+# trust_env=False bypasses any HTTP(S)_PROXY env vars (e.g., a sandbox
+# proxy that intercepts Python network calls but not direct localhost
+# traffic). Without this, the readiness check 405s and the whole suite
+# silently skips.
 def _redakt_ready(url: str) -> bool:
     try:
-        return httpx.get(f"{url}/api/health", timeout=2.0).status_code == 200
+        with httpx.Client(timeout=2.0, trust_env=False) as client:
+            return client.get(f"{url}/api/health").status_code == 200
     except httpx.HTTPError:
         return False
 
@@ -37,5 +42,5 @@ def redakt_url() -> str:
 
 @pytest.fixture(scope="session")
 def http(redakt_url: str):
-    with httpx.Client(timeout=10.0) as client:
+    with httpx.Client(timeout=10.0, trust_env=False) as client:
         yield client
