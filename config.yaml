@@ -37,6 +37,16 @@ entity_score_thresholds:
   # separates the two without losing real URLs.
   URL: 0.55
 
+  # DE_FUEHRERSCHEIN regex `[A-Z]{2}\d{8}[A-Z0-9]` matches any 11-char
+  # 2-letter+9-alphanum sequence — including DE-prefixed VAT IDs like
+  # `DE123456789`. The recognizer already declares context words
+  # ("Führerschein", "Fahrerlaubnis", etc.) which boost real matches
+  # to ~0.70 while bare-pattern hits stay at the 0.35 base. The 0.5
+  # floor separates the two: real Führerschein numbers in context
+  # pass; spurious matches on DE\d{9} VAT IDs are dropped (DE_VAT_ID
+  # at score 0.85 still fires correctly on those spans).
+  DE_FUEHRERSCHEIN: 0.5
+
 # --- Language ---
 default_language: auto
 supported_languages: [en, de]
