@@ -89,6 +89,60 @@ default build path; if you hit `HTTP 429`, configure `HF_TOKEN` /
 with a corresponding `--mount=type=secret,id=hf_token` in
 `Dockerfile.multi`.
 
+### Production deploy (GHCR registry)
+
+Production runs are pull-based, not build-on-host. Images are built on
+a developer machine and pushed to GitHub Container Registry; the prod
+host only pulls.
+
+**One-time setup (developer machine).** Generate a classic GitHub PAT
+at <https://github.com/settings/tokens> with `read:packages` and
+`write:packages` scopes, then:
+
+```bash
+echo "$GHCR_PAT" | docker login ghcr.io -u <github-user> --password-stdin
+```
+
+**Build + push.** Single-arch `linux/amd64` for the Hetzner production
+host. On Apple Silicon hosts the analyzer image builds under QEMU
+emulation, which makes the first build slow (~30-60 min); subsequent
+builds reuse layer cache.
+
+```bash
+./tools/build-and-push-prod.sh
+```
+
+The script tags every image with both `:latest` (rolling) and
+`:<git-short-sha>` (pinable). Refuses to run with uncommitted changes
+so the SHA tag always reflects what's pushed.
+
+**One-time setup (production host).** Generate a separate PAT with
+`read:packages` only and `docker login` once. Ensure the external
+`caddy_net` network exists:
+
+```bash
+docker network create caddy_net    # if not already present
+```
+
+**Deploy.** From the host, with only `docker-compose.prod.yml` (no
+source needed):
+
+```bash
+docker compose -f docker-compose.prod.yml pull
+docker compose -f docker-compose.prod.yml up -d
+```
+
+To pin a deploy to a specific build instead of `:latest`:
+
+```bash
+REDAKT_IMAGE_TAG=abc1234 docker compose -f docker-compose.prod.yml pull
+REDAKT_IMAGE_TAG=abc1234 docker compose -f docker-compose.prod.yml up -d
+```
+
+The compose file keeps the original `build:` blocks so `docker compose
+-f docker-compose.prod.yml up --build` still works on a developer host
+when you want to rebuild without pushing.
+
 ## API
 
 All endpoints accept `"language": "auto"` (default) or an explicit language code. All endpoints respect allow lists and are audit-logged.

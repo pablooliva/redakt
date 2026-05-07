@@ -1,5 +1,6 @@
 services:
   redakt:
+    image: ghcr.io/pablooliva/redakt:${REDAKT_IMAGE_TAG:-latest}
     build:
       context: .
       dockerfile: Dockerfile
@@ -22,6 +23,7 @@ services:
     # (en spaCy + de transformer). Required for the German PII recall
     # SDD-007 was built to deliver — plain spaCy multilingual misclassifies
     # German common nouns as PERSON.
+    image: ghcr.io/pablooliva/redakt-presidio-analyzer:${REDAKT_IMAGE_TAG:-latest}
     build:
       context: ./presidio/presidio-analyzer
       dockerfile: Dockerfile.multi
@@ -37,6 +39,7 @@ services:
       start_period: 30s
 
   presidio-anonymizer:
+    image: ghcr.io/pablooliva/redakt-presidio-anonymizer:${REDAKT_IMAGE_TAG:-latest}
     build:
       context: ./presidio/presidio-anonymizer
     environment:
