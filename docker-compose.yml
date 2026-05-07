@@ -7,10 +7,13 @@ services:
       - "8000:8000"
     volumes:
       - ./src:/app/src
-    # .env (gitignored, copied from .env.example) is the canonical source
-    # for tunable settings; the explicit `environment:` block below pins
-    # the three values that depend on the compose network topology and
-    # shouldn't be surprised by .env edits.
+      # config.yaml holds committed runtime policy (thresholds, limits,
+      # allow lists). Mounted read-only so the host file is the source
+      # of truth and changes show up after `docker compose restart`.
+      - ./config.yaml:/app/config.yaml:ro
+    # .env (gitignored, copied from .env.example) holds per-instance
+    # secrets and connection strings; the explicit `environment:` block
+    # below pins values that depend on the compose network topology.
     env_file:
       - path: .env
         required: false

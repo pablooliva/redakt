@@ -1,0 +1,72 @@
+# Redakt runtime configuration.
+#
+# Tunable policy and thresholds live here, committed to git so policy
+# changes are visible in code review and consistent across deployments.
+#
+# Precedence (highest wins):
+#   1. Per-request body params on /api/detect, /api/anonymize
+#   2. Environment variables (REDAKT_*, optionally loaded from .env)
+#   3. This file (config.yaml)
+#   4. Hard-coded defaults in src/redakt/config.py
+#
+# Override the file path with REDAKT_CONFIG_FILE=/path/to/other.yaml.
+# Override individual values per instance via REDAKT_* env vars.
+
+# --- Detection sensitivity ---
+default_score_threshold: 0.35
+
+# Per-entity floors applied as a post-filter on Presidio scores.
+# A floor > 1.0 is the "never fire" knob — used to disable an entity
+# entirely. Operator policy decisions are documented in the comments
+# alongside each entry.
+entity_score_thresholds:
+  # Generic city + relative date over-fire at the 0.35 default; raise
+  # both so "Munich today" / "next weekend" stop registering as PII.
+  LOCATION: 0.90
+  DATE_TIME: 0.95
+
+  # ORGANIZATION disabled: legal entities (GmbH/UG/GbR/KG), brand
+  # names, and product SKUs are NOT PII under our rules. Only natural
+  # persons + identifiers redact. (See pilot results in
+  # tools/memodo_pilot.py for the rationale.)
+  ORGANIZATION: 1.01
+
+  # URL recognizer fires at 0.50 on email-domain fragments (e.g.
+  # `solarprofi-mueller.de` extracted from a full email address).
+  # Real URLs with `https://` score 0.60. The 0.55 floor cleanly
+  # separates the two without losing real URLs.
+  URL: 0.55
+
+# --- Language ---
+default_language: auto
+supported_languages: [en, de]
+language_detection_timeout: 2.0
+language_detection_fallback: en
+
+# --- Allow list (instance-wide; merged with per-request terms) ---
+# Strings here are filtered out of all detection results post-Presidio.
+allow_list: []
+
+# --- Limits ---
+max_text_length: 512000          # ~500 KB
+presidio_timeout: 30.0
+max_file_size: 10485760          # 10 MB
+max_zip_uncompressed_size: 104857600  # 100 MB
+max_concurrent_uploads: 3
+max_xlsx_cells: 50000
+document_processing_timeout: 120.0
+supported_file_types:
+  - .txt
+  - .md
+  - .csv
+  - .json
+  - .xml
+  - .html
+  - .xlsx
+  - .docx
+  - .rtf
+  - .pdf
+
+# --- Audit log size ---
+audit_log_max_bytes: 10485760    # 10 MB
+audit_log_backup_count: 5

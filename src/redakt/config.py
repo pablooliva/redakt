@@ -1,9 +1,52 @@
+import os
 from pathlib import Path
+from typing import Any
 
-from pydantic_settings import BaseSettings
+import yaml
+from pydantic.fields import FieldInfo
+from pydantic_settings import BaseSettings, PydanticBaseSettingsSource
 
 # Default: resolve from this file's location (works both installed and local)
 _DEFAULT_BASE_DIR = str(Path(__file__).parent)
+
+# Path to the YAML config file. Defaults to ./config.yaml relative to the
+# working directory; override with REDAKT_CONFIG_FILE for non-standard
+# layouts. Missing file is fine — the YAML source returns {} and the
+# class defaults below take effect.
+_CONFIG_YAML_PATH = Path(os.environ.get("REDAKT_CONFIG_FILE", "config.yaml"))
+
+
+class _YamlConfigSource(PydanticBaseSettingsSource):
+    """Load Settings fields from a YAML file at the project root.
+
+    Sits between env vars and class defaults in the precedence chain
+    so committed policy values (in config.yaml) act as the operative
+    defaults, while .env / shell env still override per instance.
+    """
+
+    def __init__(self, settings_cls: type[BaseSettings]):
+        super().__init__(settings_cls)
+        if _CONFIG_YAML_PATH.is_file():
+            with _CONFIG_YAML_PATH.open(encoding="utf-8") as fh:
+                self._data: dict[str, Any] = yaml.safe_load(fh) or {}
+        else:
+            self._data = {}
+
+    def get_field_value(
+        self, _field: FieldInfo, field_name: str
+    ) -> tuple[Any, str, bool]:
+        # Required by the PydanticBaseSettingsSource interface but the
+        # FieldInfo isn't needed — the YAML key matches the field name
+        # directly, and YAML's typed scalars match pydantic's coercion.
+        value = self._data.get(field_name)
+        return value, field_name, False
+
+    def __call__(self) -> dict[str, Any]:
+        return {
+            name: self._data[name]
+            for name in self._data
+            if name in self.settings_cls.model_fields
+        }
 
 
 class Settings(BaseSettings):
@@ -44,6 +87,25 @@ class Settings(BaseSettings):
         "env_file_encoding": "utf-8",
         "extra": "ignore",
     }
+
+    @classmethod
+    def settings_customise_sources(
+        cls,
+        settings_cls: type[BaseSettings],
+        init_settings: PydanticBaseSettingsSource,
+        env_settings: PydanticBaseSettingsSource,
+        dotenv_settings: PydanticBaseSettingsSource,
+        file_secret_settings: PydanticBaseSettingsSource,
+    ) -> tuple[PydanticBaseSettingsSource, ...]:
+        # Precedence (highest first):
+        #   init args > env vars > .env > config.yaml > class defaults
+        return (
+            init_settings,
+            env_settings,
+            dotenv_settings,
+            _YamlConfigSource(settings_cls),
+            file_secret_settings,
+        )
 
 
 settings = Settings()
