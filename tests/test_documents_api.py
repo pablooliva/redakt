@@ -141,14 +141,7 @@ startxref
         assert "Unsupported" in resp.json()["detail"]
 
     def test_file_too_large(self, client):
-        """File > 10MB returns 413."""
-        resp = client.post(
-            "/api/documents/upload",
-            files={"file": ("big.txt", io.BytesIO(b"x"), "text/plain")},
-            data={"language": "en"},
-        )
-        # The file content is small, but we need to test with actual large content
-        # or mock settings. Let's test the validation path:
+        """File over the configured max_file_size returns 413."""
         with patch("redakt.services.document_processor.settings") as mock_settings:
             mock_settings.max_file_size = 10
             mock_settings.supported_file_types = [".txt"]
@@ -156,12 +149,12 @@ startxref
             mock_settings.default_score_threshold = 0.35
             mock_settings.supported_languages = ["en", "de"]
             mock_settings.max_text_length = 512_000
-            resp2 = client.post(
+            resp = client.post(
                 "/api/documents/upload",
                 files={"file": ("big.txt", io.BytesIO(b"x" * 100), "text/plain")},
                 data={"language": "en"},
             )
-        assert resp2.status_code == 413
+        assert resp.status_code == 413
 
     def test_empty_file(self, client, mock_doc_detect_language):
         """Empty file returns empty content with fallback language (EDGE-003, FINDING-09)."""
