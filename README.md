@@ -89,59 +89,66 @@ default build path; if you hit `HTTP 429`, configure `HF_TOKEN` /
 with a corresponding `--mount=type=secret,id=hf_token` in
 `Dockerfile.multi`.
 
-### Production deploy (GHCR registry)
+### Production deploy (build local, stream over SSH)
 
-Production runs are pull-based, not build-on-host. Images are built on
-a developer machine and pushed to GitHub Container Registry; the prod
-host only pulls.
+Production runs do not build on the server and do not pull from a
+registry. Images are built on a developer machine for `linux/amd64`,
+then `docker save | ssh | docker load` streams them straight to the
+Hetzner host. No registry, no auth tokens beyond your existing SSH key,
+no monthly storage fee.
 
-**One-time setup (developer machine).** Generate a classic GitHub PAT
-at <https://github.com/settings/tokens> with `read:packages` and
-`write:packages` scopes, then:
+**Build (developer machine).** Single-arch `linux/amd64` to match the
+Hetzner x86_64 host. On Apple Silicon hosts buildx runs amd64 under
+QEMU emulation, which makes the analyzer image's transformer install
+slow on first build (~30-60 min); subsequent builds reuse layer cache.
 
 ```bash
-echo "$GHCR_PAT" | docker login ghcr.io -u <github-user> --password-stdin
+./tools/build-prod-images.sh
 ```
 
-**Build + push.** Single-arch `linux/amd64` for the Hetzner production
-host. On Apple Silicon hosts the analyzer image builds under QEMU
-emulation, which makes the first build slow (~30-60 min); subsequent
-builds reuse layer cache.
+This populates the local Docker daemon with three tags:
+`redakt-redakt:latest`, `redakt-presidio-analyzer:latest`,
+`redakt-presidio-anonymizer:latest`.
+
+**One-time setup (production host).** Ensure the external `caddy_net`
+network exists, and copy `docker-compose.prod.yml` to the host (the
+host needs nothing else from this repo):
 
 ```bash
-./tools/build-and-push-prod.sh
+docker network create caddy_net   # idempotent; ignore "already exists"
+# from the dev machine:
+scp docker-compose.prod.yml Hetzner-personal:~/redakt/
 ```
 
-The script tags every image with both `:latest` (rolling) and
-`:<git-short-sha>` (pinable). Refuses to run with uncommitted changes
-so the SHA tag always reflects what's pushed.
-
-**One-time setup (production host).** Generate a separate PAT with
-`read:packages` only and `docker login` once. Ensure the external
-`caddy_net` network exists:
+**Deploy.** From the dev machine, save + stream + load in one pipe
+(~10 GB on the wire, gzip-compressed; expect a handful of minutes):
 
 ```bash
-docker network create caddy_net    # if not already present
+./tools/deploy-prod-images.sh
+# Override default SSH alias if needed:
+REDAKT_PROD_HOST=user@1.2.3.4 ./tools/deploy-prod-images.sh
 ```
 
-**Deploy.** From the host, with only `docker-compose.prod.yml` (no
-source needed):
+Then on the host:
 
 ```bash
-docker compose -f docker-compose.prod.yml pull
+cd ~/redakt
 docker compose -f docker-compose.prod.yml up -d
+docker compose -f docker-compose.prod.yml ps
 ```
 
-To pin a deploy to a specific build instead of `:latest`:
+The compose file keeps the original `build:` blocks so
+`docker compose -f docker-compose.prod.yml up --build` still works on
+a developer host when you want to rebuild without deploying. The
+`image:` tags use bare names (no registry prefix) because `docker load`
+preserves whatever name the image had when saved.
 
-```bash
-REDAKT_IMAGE_TAG=abc1234 docker compose -f docker-compose.prod.yml pull
-REDAKT_IMAGE_TAG=abc1234 docker compose -f docker-compose.prod.yml up -d
-```
-
-The compose file keeps the original `build:` blocks so `docker compose
--f docker-compose.prod.yml up --build` still works on a developer host
-when you want to rebuild without pushing.
+**Trade-off vs. a registry.** Each deploy transfers the FULL image
+with no layer-level reuse on the wire. Fine for infrequent deploys;
+painful if you push multiple times per day. If deploy frequency goes
+up, switch to a self-hosted `registry:2` on the same Hetzner box
+(layer caching, no extra cost) — see git history for the prior GHCR
+flow as a reference.
 
 ## API
 
