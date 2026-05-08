@@ -19,7 +19,7 @@
 
 feature: 007 (transformers-nlp-backend)
 branch:  main
-commits: 1070180..f19a6b6
+commits: 1070180..cff328a
 notes:   MultiNlpEngine + multi.yaml + Dockerfile.multi + revision pin
          (chunks 1A, 1B, 5, 4c). 4e adds populated digest manifest +
          tamper test + atomic manifest write + retry-after-failure +
@@ -40,4 +40,10 @@ notes:   MultiNlpEngine + multi.yaml + Dockerfile.multi + revision pin
          "Lieferadresse" -> "Lieferadres" (over-aggressive -esse
          stripping); adds the observed broken lemma so the +0.35
          context boost finally applies on bare "Lieferadresse: <PLZ>"
-         positives. SHA range is the authoritative anchor.
+         positives. cff328a extends DE_PLZ CONTEXT with bare
+         "anschrift" plus the B2B project anchors "bauvorhaben" /
+         "baustelle" — closes the "<project word> in <PLZ> <City>"
+         shape (Memodo pilot phrase 02 — Bauvorhaben in 73230
+         Kirchheim/Teck), the sole remaining DE_PLZ recall miss after
+         the prior two CONTEXT fixes. SHA range is the authoritative
+         anchor.

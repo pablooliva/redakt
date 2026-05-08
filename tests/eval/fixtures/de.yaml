@@ -23,6 +23,16 @@
   expect: [DE_PLZ]
   notes: "Anchors the spaCy de_core_news_sm lemma-drift fix (fork f19a6b6). 'Lieferadresse' lemmatizes to 'Lieferadres' (over-stripped -esse), so the DE_PLZ CONTEXT list carries both spellings. A future model swap that re-breaks substring matching on this token must re-add the broken lemma here."
 
+- text: "Hallo, für unser Bauvorhaben in 73230 Kirchheim/Teck benötigen wir ein Angebot."
+  language: de
+  expect: [DE_PLZ]
+  notes: "Anchors the B2B-project-context fix (Memodo pilot phrase 02). 'Bauvorhaben' is the only CONTEXT-eligible token in the prefix window; before fork b3-fix it was not in the DE_PLZ CONTEXT list and no other entry substring-matched it (Bauvorhaben does not contain 'ort'/'straße'/'weg'/etc.), so the +0.35 boost did not apply. Pattern represents the common '<project word> in <PLZ> <City>' shape in installer/GC traffic where no canonical address keyword (Adresse/Postanschrift/PLZ) appears."
+
+- text: "Auf der Baustelle in 70197 Stuttgart fehlen noch zwei Wechselrichter."
+  language: de
+  expect: [DE_PLZ]
+  notes: "Companion to the Bauvorhaben fixture above — same '<project word> in <PLZ> <City>' shape but with 'Baustelle'. Anchors the second new CONTEXT entry."
+
 - text: "Kfz-Kennzeichen M-AB 1234."
   language: de
   expect: [DE_KFZ]
