@@ -19,7 +19,7 @@
 
 feature: 007 (transformers-nlp-backend)
 branch:  main
-commits: 1070180..322eccf
+commits: 1070180..f19a6b6
 notes:   MultiNlpEngine + multi.yaml + Dockerfile.multi + revision pin
          (chunks 1A, 1B, 5, 4c). 4e adds populated digest manifest +
          tamper test + atomic manifest write + retry-after-failure +
@@ -35,5 +35,9 @@ notes:   MultiNlpEngine + multi.yaml + Dockerfile.multi + revision pin
          12 digits MaStR-Nummer per BNetzA) and scopes
          MedicalLicenseRecognizer to en only — together closing the
          MaStR recall miss and the MEDICAL_LICENSE-on-German-text
-         spurious surfaced by the same pilot. SHA range is the
-         authoritative anchor.
+         spurious surfaced by the same pilot. f19a6b6 patches DE_PLZ
+         CONTEXT for the spaCy de_core_news_sm lemma drift on
+         "Lieferadresse" -> "Lieferadres" (over-aggressive -esse
+         stripping); adds the observed broken lemma so the +0.35
+         context boost finally applies on bare "Lieferadresse: <PLZ>"
+         positives. SHA range is the authoritative anchor.

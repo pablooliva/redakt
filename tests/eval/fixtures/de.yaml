@@ -18,6 +18,11 @@
   expect: [DE_PLZ]
   notes: "PLZ should be detected; München may also fire as LOCATION at high confidence"
 
+- text: "Lieferadresse: 80331 München"
+  language: de
+  expect: [DE_PLZ]
+  notes: "Anchors the spaCy de_core_news_sm lemma-drift fix (fork f19a6b6). 'Lieferadresse' lemmatizes to 'Lieferadres' (over-stripped -esse), so the DE_PLZ CONTEXT list carries both spellings. A future model swap that re-breaks substring matching on this token must re-add the broken lemma here."
+
 - text: "Kfz-Kennzeichen M-AB 1234."
   language: de
   expect: [DE_KFZ]
