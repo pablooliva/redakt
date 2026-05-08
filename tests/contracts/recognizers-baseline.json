@@ -122,19 +122,6 @@
       "supported_language": "de"
     },
     {
-      "name": "MedicalLicenseRecognizer",
-      "patterns": [
-        {
-          "name": "USA DEA Certificate Number (weak)",
-          "score": 0.4
-        }
-      ],
-      "supported_entities": [
-        "MEDICAL_LICENSE"
-      ],
-      "supported_language": "de"
-    },
-    {
       "name": "MacAddressRecognizer",
       "patterns": [
         {
@@ -313,6 +300,19 @@
       ],
       "supported_entities": [
         "DE_PLZ"
+      ],
+      "supported_language": "de"
+    },
+    {
+      "name": "DeMastrRecognizer",
+      "patterns": [
+        {
+          "name": "MaStR-Nummer (3-letter prefix + 12 digits)",
+          "score": 0.85
+        }
+      ],
+      "supported_entities": [
+        "DE_MASTR_ID"
       ],
       "supported_language": "de"
     }

@@ -76,6 +76,7 @@ These recognizers are registered per language code in Presidio. To detect them, 
 | `DE_LANR` | Lebenslange Arztnummer (physician ID) |
 | `DE_BSNR` | Betriebsstättennummer (medical practice ID) |
 | `DE_HANDELSREGISTER` | Commercial register number |
+| `DE_MASTR_ID` | Marktstammdatenregister-Nummer (BNetzA energy-market identifier) |
 
 ### 🇮🇹 Italy (`it`)
 

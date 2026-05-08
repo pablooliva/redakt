@@ -36,6 +36,11 @@
   expect: [DE_FUEHRERSCHEIN]
   notes: "Pattern is [A-Z]{2}\\d{8}[A-Z0-9] — 2 letters + 8 digits + 1 alphanum."
 
+- text: "MaStR-Nummer SEE901234567890."
+  language: de
+  expect: [DE_MASTR_ID]
+  notes: "BNetzA Marktstammdatenregister: 3-letter object-type prefix + 12 digits. SEE = Stromerzeugungseinheit. Pilot fixture (06-site-visit-with-mastr); also pins the MEDICAL_LICENSE-substring fix (recognizer scoped to en in default_recognizers.yaml)."
+
 # === SDD-007 REQ-008/009: broader-class over-detection guardrails ===
 # Fifteen `expect_clean: true` bare-noun fixtures per RESEARCH-007 §7.4 (10
 # named + 5 sub-class extras). Under spaCy `de_core_news_lg` these flagged as

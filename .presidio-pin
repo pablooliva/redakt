@@ -19,7 +19,7 @@
 
 feature: 007 (transformers-nlp-backend)
 branch:  main
-commits: 1070180..4b24175
+commits: 1070180..322eccf
 notes:   MultiNlpEngine + multi.yaml + Dockerfile.multi + revision pin
          (chunks 1A, 1B, 5, 4c). 4e adds populated digest manifest +
          tamper test + atomic manifest write + retry-after-failure +
@@ -31,4 +31,9 @@ notes:   MultiNlpEngine + multi.yaml + Dockerfile.multi + revision pin
          re-baseline. 4b24175 extends DE_PLZ recognizer context with
          common German street suffixes (weg/allee/ring/platz/gasse/etc.)
          to fix address-block recall in the Memodo calibration pilot.
-         SHA range is the authoritative anchor.
+         322eccf adds DeMastrRecognizer (DE_MASTR_ID, 3-letter prefix +
+         12 digits MaStR-Nummer per BNetzA) and scopes
+         MedicalLicenseRecognizer to en only — together closing the
+         MaStR recall miss and the MEDICAL_LICENSE-on-German-text
+         spurious surfaced by the same pilot. SHA range is the
+         authoritative anchor.

@@ -12,8 +12,9 @@ Policy decisions baked into `expected`:
   - Brand / product names (Sungrow, Huawei, Tesla, Fronius, JA Solar,
     LG Chem, Trina, SMA, Tigo, BYD, DHL) are NOT PII — must NOT appear.
   - Memodo employee names ARE PII (treated as customer PII per GDPR).
-  - EEG / MaStR plant IDs ARE PII (no recognizer exists yet — will
-    show up as recall miss; that's the point of including them).
+  - EEG / MaStR plant IDs ARE PII. DeMastrRecognizer (DE_MASTR_ID)
+    detects the canonical 3-letter prefix + 12-digit MaStR-Nummer
+    issued by the BNetzA.
 
 Run from repo root with the dev compose stack up:
     uv run python tools/memodo_pilot.py
@@ -117,8 +118,8 @@ PHRASES: list[Phrase] = [
             "0851 666999. MaStR-Nummer SEE901234567890."
         ),
         language="de",
-        expected={"PERSON", "LOCATION", "DE_PLZ", "PHONE_NUMBER", "DATE_TIME", "MASTR_ID"},
-        notes="MASTR_ID is a custom-recognizer placeholder — will be MISSED (no recognizer exists). Brands JA Solar / Huawei must NOT fire.",
+        expected={"PERSON", "LOCATION", "DE_PLZ", "PHONE_NUMBER", "DATE_TIME", "DE_MASTR_ID"},
+        notes="DE_MASTR_ID matches the SEE-prefixed MaStR-Nummer at 0.85 (DeMastrRecognizer). Brands JA Solar / Huawei must NOT fire.",
     ),
     Phrase(
         label="07-english-mfg-correspondence",
