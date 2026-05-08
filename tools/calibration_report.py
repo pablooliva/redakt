@@ -135,7 +135,11 @@ def run(
     report.add("")
 
     fails = 0
-    with httpx.Client(timeout=10.0) as http:
+    # trust_env=False bypasses any HTTP(S)_PROXY env vars (e.g. the Socket
+    # Firewall sandbox intercepts Python network calls but not curl/system
+    # traffic to localhost). Same fix pattern as commit a2ddeda for the
+    # eval-suite client and tools/memodo_pilot.py.
+    with httpx.Client(timeout=10.0, trust_env=False) as http:
         for phrase in phrases:
             try:
                 kept_pairs, found = _detect_via_redakt(http, redakt_url, phrase)
