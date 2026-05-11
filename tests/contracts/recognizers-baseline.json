@@ -37,8 +37,12 @@
           "score": 0.6
         },
         {
-          "name": "dd.mm.yyyy or dd.mm.yy",
-          "score": 0.6
+          "name": "dd.mm.yy (ambiguous with software versions)",
+          "score": 0.4
+        },
+        {
+          "name": "dd.mm.yyyy",
+          "score": 0.95
         },
         {
           "name": "dd/mm/yyyy or dd/mm/yy",
@@ -589,8 +593,12 @@
           "score": 0.6
         },
         {
-          "name": "dd.mm.yyyy or dd.mm.yy",
-          "score": 0.6
+          "name": "dd.mm.yy (ambiguous with software versions)",
+          "score": 0.4
+        },
+        {
+          "name": "dd.mm.yyyy",
+          "score": 0.95
         },
         {
           "name": "dd/mm/yyyy or dd/mm/yy",

@@ -33,6 +33,16 @@
   expect: [DE_PLZ]
   notes: "Companion to the Bauvorhaben fixture above — same '<project word> in <PLZ> <City>' shape but with 'Baustelle'. Anchors the second new CONTEXT entry."
 
+- text: "Versand voraussichtlich am 15.05.2026."
+  language: de
+  expect: [DATE_TIME]
+  notes: "Anchors the dd.mm.yyyy score bump (fork ee93662). xlm-roberta-large-finetuned-conll03-german has no DATE label, so regex DateRecognizer is the only DATE_TIME signal on German requests. Pre-fix the 0.6 base pattern score was filtered by Redakt's DATE_TIME: 0.95 floor (the floor exists to drop NLP DATE overfire on 'today' / 'next weekend'); the split now scores unambiguous 4-digit-year dotted dates at 0.95 so they pass."
+
+- text: "Stichtag 31.12.2025 für die Anmeldung."
+  language: de
+  expect: [DATE_TIME]
+  notes: "Companion: same dd.mm.yyyy at year-end boundary. Confirms the 4-digit-year regex anchor doesn't depend on a German date keyword (Stichtag is in CONTEXT but the base score already clears the floor on its own)."
+
 - text: "Kfz-Kennzeichen M-AB 1234."
   language: de
   expect: [DE_KFZ]

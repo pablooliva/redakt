@@ -19,7 +19,7 @@
 
 feature: 007 (transformers-nlp-backend)
 branch:  main
-commits: 1070180..cff328a
+commits: 1070180..ee93662
 notes:   MultiNlpEngine + multi.yaml + Dockerfile.multi + revision pin
          (chunks 1A, 1B, 5, 4c). 4e adds populated digest manifest +
          tamper test + atomic manifest write + retry-after-failure +
@@ -45,5 +45,11 @@ notes:   MultiNlpEngine + multi.yaml + Dockerfile.multi + revision pin
          "baustelle" — closes the "<project word> in <PLZ> <City>"
          shape (Memodo pilot phrase 02 — Bauvorhaben in 73230
          Kirchheim/Teck), the sole remaining DE_PLZ recall miss after
-         the prior two CONTEXT fixes. SHA range is the authoritative
+         the prior two CONTEXT fixes. ee93662 splits DateRecognizer's
+         dd.mm.yyyy pattern into a 4-digit-year form at 0.95 (clears
+         consumer DATE_TIME floors meant to drop NLP overfire) + a
+         2-digit form at 0.4 (ambiguous with software versions); adds
+         German date keywords to CONTEXT. Closes 4/6 DATE_TIME misses
+         on German requests (xlm-roberta has no DATE label, so the
+         regex is the only signal). SHA range is the authoritative
          anchor.
