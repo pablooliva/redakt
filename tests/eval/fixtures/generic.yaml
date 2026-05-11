@@ -40,3 +40,60 @@
   language: de
   expect: [PERSON]
   notes: "Bare city alone isn't PII at the default threshold; we want PERSON detected. ORGANIZATION not currently firing on the spaCy German model."
+
+# === EU_VAT_ID (multi-country) — cross-border B2B coverage ===
+# One recognizer, all 27 EU prefixes, registered en+de. The fixtures below
+# anchor the per-prefix length constraints and the en/de symmetry; the
+# matching country-specific bodies live in the EuVatIdRecognizer regex.
+# Closes the gap where only DE-prefixed VAT IDs were detected (the
+# country-specific DeVatIdRecognizer is de-only and DE-only).
+
+- text: "Please remit to our Italian supplier; VAT ID IT12345678901."
+  language: en
+  expect: [EU_VAT_ID]
+  notes: "Italian subsidiary on English correspondence — IT 11 digits. DeVatIdRecognizer is de-only, so before EU_VAT_ID this phrase surfaced zero VAT entities."
+
+- text: "Our Dutch entity uses VAT NL123456789B01 on invoices."
+  language: en
+  expect: [EU_VAT_ID]
+  notes: "Netherlands VAT format: 9 digits + literal 'B' + 2 digits."
+
+- text: "Czech supplier VAT CZ12345678 attached to PO."
+  language: en
+  expect: [EU_VAT_ID]
+  notes: "Czechia: 8-digit short form (CZ also allows 9 or 10)."
+
+- text: "French invoice cites VAT FR12345678901 for Q2 reconciliation."
+  language: en
+  expect: [EU_VAT_ID]
+  notes: "France: 2 alphanumeric + 9 digits = 11 chars after FR."
+
+- text: "Polish customer reference: NIP PL1234567890 on order 4711."
+  language: en
+  expect: [EU_VAT_ID]
+  notes: "Poland: 10 digits. 'NIP' is the local-language VAT term and appears in EU_VAT_ID's CONTEXT list."
+
+- text: "Bitte überweisen Sie an unseren österreichischen Lieferanten; USt-IdNr. ATU12345678."
+  language: de
+  expect: [EU_VAT_ID]
+  notes: "Austria on German text — AT VAT IDs are always 'U' + 8 digits. DeVatIdRecognizer requires the DE prefix exactly, so AT-prefix detection only comes from EU_VAT_ID."
+
+- text: "Rechnung enthält die VAT IT12345678901 unseres italienischen Werks."
+  language: de
+  expect: [EU_VAT_ID]
+  notes: "Italian VAT in German invoice text — cross-border invoice flow at a DE HQ."
+
+- text: "Anfrage vom polnischen Partner mit VAT-ID PL1234567890."
+  language: de
+  expect: [EU_VAT_ID]
+  notes: "PL prefix on German text — neighbor country that DeVatIdRecognizer never handled."
+
+- text: "Unsere niederländische Niederlassung nutzt NL123456789B01."
+  language: de
+  expect: [EU_VAT_ID]
+  notes: "Dutch VAT on German text — multi-subsidiary parent-company shape."
+
+- text: "Cross-border invoice for DE123456789 from our UK branch."
+  language: en
+  expect: [EU_VAT_ID]
+  notes: "DE prefix on ENGLISH text — DeVatIdRecognizer is de-only, so only EU_VAT_ID surfaces here. Pins the language-symmetry value."

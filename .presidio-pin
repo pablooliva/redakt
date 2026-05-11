@@ -19,7 +19,7 @@
 
 feature: 007 (transformers-nlp-backend)
 branch:  main
-commits: 1070180..ee93662
+commits: 1070180..587957a
 notes:   MultiNlpEngine + multi.yaml + Dockerfile.multi + revision pin
          (chunks 1A, 1B, 5, 4c). 4e adds populated digest manifest +
          tamper test + atomic manifest write + retry-after-failure +
@@ -51,5 +51,16 @@ notes:   MultiNlpEngine + multi.yaml + Dockerfile.multi + revision pin
          2-digit form at 0.4 (ambiguous with software versions); adds
          German date keywords to CONTEXT. Closes 4/6 DATE_TIME misses
          on German requests (xlm-roberta has no DATE label, so the
-         regex is the only signal). SHA range is the authoritative
-         anchor.
+         regex is the only signal). 587957a adds EuVatIdRecognizer
+         (EU_VAT_ID) — one multi-country recognizer covering all 27
+         EU prefixes at 0.5 base score, registered for both en and de
+         so cross-border B2B traffic between a German HQ and its
+         IT/CZ/NL subsidiaries (or English correspondence mentioning
+         Austrian or Polish suppliers) yields detections on non-DE
+         prefixes that DeVatIdRecognizer never handled. Per-prefix
+         body lengths from the VIES spec; lookaround anchors prevent
+         matches from extending into adjacent alphanumeric tokens.
+         DeVatIdRecognizer is unchanged and remains the de-only
+         authority on DE-prefixed IDs (both fire on DE prefix; the
+         score merge yields one result per span). SHA range is the
+         authoritative anchor.
