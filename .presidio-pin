@@ -19,7 +19,7 @@
 
 feature: 007 (transformers-nlp-backend)
 branch:  main
-commits: 1070180..587957a
+commits: 1070180..2fbe4d9
 notes:   MultiNlpEngine + multi.yaml + Dockerfile.multi + revision pin
          (chunks 1A, 1B, 5, 4c). 4e adds populated digest manifest +
          tamper test + atomic manifest write + retry-after-failure +
@@ -62,5 +62,13 @@ notes:   MultiNlpEngine + multi.yaml + Dockerfile.multi + revision pin
          matches from extending into adjacent alphanumeric tokens.
          DeVatIdRecognizer is unchanged and remains the de-only
          authority on DE-prefixed IDs (both fire on DE prefix; the
-         score merge yields one result per span). SHA range is the
-         authoritative anchor.
+         score merge yields one result per span). 2fbe4d9 caps
+         transformers <5.0 + huggingface_hub <1.0 in
+         presidio-analyzer/pyproject.toml. Both v5/v1 majors shipped
+         on 2026-05-11 and have not yet been validated end-to-end
+         against `spacy_huggingface_pipelines` 0.0.4 or the SDD-007
+         MultiNlpEngine + xlm-roberta path; the caps pin docker
+         rebuilds to the same version set the calibration baseline
+         was anchored on. Remove the caps after an eval-suite +
+         calibration-report re-anchor on the new majors. SHA range
+         is the authoritative anchor.
