@@ -19,7 +19,7 @@
 
 feature: 007 (transformers-nlp-backend)
 branch:  main
-commits: 1070180..184d0e1
+commits: 1070180..a01a3b3
 notes:   MultiNlpEngine + multi.yaml + Dockerfile.multi + revision pin
          (chunks 1A, 1B, 5, 4c). 4e adds populated digest manifest +
          tamper test + atomic manifest write + retry-after-failure +
@@ -130,4 +130,38 @@ notes:   MultiNlpEngine + multi.yaml + Dockerfile.multi + revision pin
          continue to produce their original counts + spans (probed
          live). REQ-011 floor preserved (pattern additions on an
          existing recognizer are tolerated; nothing previously detected
-         is now missed). SHA range is the authoritative anchor.
+         is now missed). a01a3b3 adds BicSwiftRecognizer (BIC_CODE,
+         ISO 9362 — [A-Z]{4} + ISO 3166-1 alpha-2 + [A-Z0-9]{2} +
+         optional [A-Z0-9]{3} branch, exactly 8 or 11 chars, base 0.85)
+         and SepaCreditorIdRecognizer (SEPA_CREDITOR_ID, EPC scheme —
+         ISO 3166-1 alpha-2 + [0-9]{2} check + [A-Z0-9]{3} CBC +
+         [A-Z0-9]{1,28} NID, total 8-35 chars, base 0.85). Both
+         registered for de + en. Two design choices anchor the FP
+         surface: (1) country-code slot constrained to the full ISO
+         3166-1 alpha-2 list (~249 codes), narrowing common-uppercase-
+         word collisions like INTERNAL (RN not assigned) / MITARBEI
+         (RB) / FRANKFUR (KF); (2) patterns wrapped in inline (?-i:...)
+         scoped flag groups so IGNORECASE is dropped per-pattern
+         regardless of the registry-level global_regex_flags value
+         (registry.py:308 overwrites inst.global_regex_flags on YAML
+         load — constructor-level flag overrides do NOT survive, only
+         inline scoping does). Without the inline drop, every 8-letter
+         lowercase word matches the bare [A-Z]{6}[A-Z0-9]{2} shape
+         under IGNORECASE and the recognizer becomes unusable on prose;
+         verified live ("die rechnung deutdeff steht aus" → 0 entities,
+         "Rechnung Nr. 12345 ist bezahlt" → 0). Residual FP surface
+         (RECHNUNG / NU / Niue; INSTITUT / IT / Italy at ALL-CAPS) is
+         anchored in fork unit tests as a documented limit-of-
+         detection; in practice these tokens appear in title case in
+         B2B prose and the IGNORECASE drop suppresses them. SEPA CI
+         pattern intentionally overlaps IBAN_CODE on IBAN-shaped spans
+         >= 15 chars (both fire, IBAN's checksum-validated 1.0 wins by
+         score, consumer template chooses per span); on the 8-14 char
+         SEPA-only zone IBAN does not match. REQ-011 floor preserved
+         (additions tolerated; baseline names/scores untouched). 8
+         floor-contract + 102 eval (+9 over the 93 post-item-4
+         baseline: 5 DE banking-adjunct fixtures + 4 EN — including
+         "please wire via swift code chasus33" expect_clean that locks
+         the inline flag drop, paired with "Rechnung Nr. 12345 ist
+         bezahlt" expect_clean on the DE side) + 350 unit/integration
+         tests pass. SHA range is the authoritative anchor.

@@ -108,6 +108,43 @@
   expect_clean: true
   notes: "Bare common noun. Must not flag DE_MALO / DE_MELO on the word alone (CONTEXT trigger, not a span)."
 
+# === Banking adjuncts (Memodo cross-border item 5) ===
+# BIC_CODE and SEPA_CREDITOR_ID at base 0.85. Both recognizers wrap their
+# patterns in (?-i:...) inline scoped flag groups to force uppercase-only
+# matching (the registry overwrites global_regex_flags on YAML load, so
+# constructor-level overrides do not survive — see fork bic_swift_recognizer.py
+# ACCURACY NOTES). The country-code slot in both patterns is restricted to
+# the ISO 3166-1 alpha-2 list, which narrows the FP surface against
+# common uppercase German words. SEPA_CREDITOR_ID intentionally overlaps
+# IBAN_CODE on IBAN-shaped spans >= 15 chars — both fire, IBAN's
+# checksum-validated 1.0 wins by score, and the consumer template picks
+# per span.
+
+- text: "Bankverbindung: Sparkasse Frankfurt, IBAN DE89370400440532013000, BIC HYVEDEMM."
+  language: de
+  expect: [IBAN_CODE, BIC_CODE]
+  notes: "Canonical DE B2B bank line — IBAN next to BIC. The 8-char all-letter form (HYVEDEMM) is the most common German bank BIC shape; positions 5-6 = 'DE' (Germany), positions 7-8 = 'MM' (alphanumeric location). BIC base 0.85 + CONTEXT 'BIC' / 'IBAN' / 'Bankverbindung' boosts saturate to 1.0. SEPA_CREDITOR_ID may also surface on the IBAN span (DE + 2 digits + 3 alphanum + ...) — subset matching tolerates the extra. Sparkasse Frankfurt may flag as ORG/LOC depending on NLP, also tolerated."
+
+- text: "Bitte überweisen Sie an IBAN DE89 3704 0044 0532 0130 00, BIC: DEUTDEFFXXX."
+  language: de
+  expect: [IBAN_CODE, BIC_CODE]
+  notes: "11-char BIC form with explicit XXX head-office branch — pins the optional 3-char branch alternation in the pattern. Spaced IBAN form (groups of 4) is the user-typed shape; IbanRecognizer's pattern matches across the spaces."
+
+- text: "SEPA-Lastschrift, Gläubiger-ID: DE17ZZZ00012345678, mit Mandatsreferenz."
+  language: de
+  expect: [SEPA_CREDITOR_ID]
+  notes: "Canonical DE Creditor Identifier shape: DE + 2 check digits + ZZZ (no Creditor Business Code used) + 11-digit national identifier = 18 chars total. The token is short enough (< 15 chars... no, 18 chars) to also match IBAN_CODE's pattern, but IBAN's checksum validation rejects this string (the check digits 17 are not a valid ISO 7064 MOD 97-10 over the rest), so only SEPA_CREDITOR_ID surfaces. 'Gläubiger-ID' is in the recognizer's CONTEXT list and boosts the score to saturation."
+
+- text: "Bankverbindung steht im Vertrag."
+  language: de
+  expect_clean: true
+  notes: "Bare common noun negative. 'Bankverbindung' is in the BIC CONTEXT list as a boost trigger, but with no BIC-shaped span in the sentence no recognizer fires. Anchors the same broader-class guardrail family as the bare-Anlagenschlüssel / bare-Marktlokation fixtures above."
+
+- text: "Rechnung Nr. 12345 ist bezahlt."
+  language: de
+  expect_clean: true
+  notes: "Anchors the inline (?-i:...) flag drop. Title-case 'Rechnung' (R uppercase, rest lowercase) would match the bare [A-Z]{4}[A-Z]{2}[A-Z0-9]{2} BIC shape under IGNORECASE, but with the scoped flag drop, positions 2-4 require uppercase and 'echn' (lowercase) fails. Without the (?-i:...) wrapping, every German invoice prose sentence with 'Rechnung' / 'Rechnungen' would FP-flag as BIC_CODE. The 5-digit '12345' is also a bare number — DE_PLZ base 0.05 + no German PLZ-context boost keeps it below the 0.35 floor."
+
 # === SDD-007 REQ-008/009: broader-class over-detection guardrails ===
 # Fifteen `expect_clean: true` bare-noun fixtures per RESEARCH-007 §7.4 (10
 # named + 5 sub-class extras). Under spaCy `de_core_news_lg` these flagged as

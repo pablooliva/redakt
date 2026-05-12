@@ -178,3 +178,32 @@
   language: en
   expect_clean: true
   notes: "Day-range guardrail. Surface looks like `Month DD, YYYY` because of the `, 2026` suffix, but the leading 'Section' is not a month name AND the day '32' is outside the [1-31] character class in the new pattern. Anchors that an invalid day is rejected by the regex even when surrounding shape (comma + 4-digit year) is date-like. Companion guardrail to `March 32, 2026 invalid day` in the fork unit tests."
+
+# === Banking adjuncts (Memodo cross-border item 5) ===
+# BIC_CODE and SEPA_CREDITOR_ID registered for en + de. The fork-side
+# recognizers wrap their patterns in inline (?-i:...) scoped flag groups
+# so the IGNORECASE drop survives Presidio's RecognizerRegistry, which
+# overwrites global_regex_flags at YAML load time. Country-code slot
+# constrained to ISO 3166-1 alpha-2; documented residual FP surface
+# (RECHNUNG / INSTITUT in ALL-CAPS prose) anchored in fork-side unit
+# tests rather than here.
+
+- text: "Please wire to BIC CHASUS33, IBAN DE89370400440532013000. Our Creditor Identifier is FR72ZZZ123456."
+  language: en
+  expect: [BIC_CODE, IBAN_CODE, SEPA_CREDITOR_ID]
+  notes: "Cross-border B2B wire instruction — US BIC + DE IBAN + FR Creditor Identifier in a single English sentence. Pins en-language symmetry for both banking adjuncts (the YAML registers them for en + de). SEPA_CREDITOR_ID may also surface a second time on the IBAN span — subset matching tolerates the extra entity. CHASUS33 has digits in the location code (positions 7-8); FR72ZZZ123456 is the minimum-CBC FR form (FR + 2 + ZZZ + 6 alphanumeric NID = 13 chars)."
+
+- text: "Our SWIFT code is BARCGB22XXX for sterling wires from London."
+  language: en
+  expect: [BIC_CODE]
+  notes: "11-char BIC with XXX head-office branch on English text. BARCGB22 is the canonical Barclays / GB BIC shape (positions 5-6 = 'GB'). LOCATION (London) does not surface end-to-end at the Redakt LOCATION: 0.90 floor on this short phrase — subset matching means the test still passes when only BIC_CODE is required."
+
+- text: "Creditor Identifier DE17ZZZ00012345678 was registered with the Bundesbank."
+  language: en
+  expect: [SEPA_CREDITOR_ID]
+  notes: "English text mentioning a DE-prefixed Creditor Identifier — the cross-border case where Memodo's English-speaking IT/CZ/NL subsidiary staff might reference the parent's CI. Anchors en-language registration of SepaCreditorIdRecognizer. 'Creditor Identifier' is in the recognizer's CONTEXT list and boosts to saturation."
+
+- text: "please wire via swift code chasus33 to the new account"
+  language: en
+  expect_clean: true
+  notes: "Lowercase-suppression anchor. Both 'chasus33' (lowercase BIC) and 'swift code' (lowercase context) are present, but the inline (?-i:...) flag drop forces uppercase-only matching on the pattern itself — lowercase 'chasus33' fails [A-Z]{4} at positions 1-4. Pins that a future fork-side change which restores IGNORECASE on these patterns would fail CI here. Equivalent in spirit to the lowercase-Rechnung anchor in de.yaml — both lock the inline flag-drop in place."
