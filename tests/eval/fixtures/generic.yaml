@@ -138,3 +138,43 @@
   language: en
   expect_clean: true
   notes: "DE_KFZ negative on English text. Pattern `M-AB 1234` matches the bindestrich+leerzeichen KFZ regex (base 0.3) but with no German vehicle context ('Kennzeichen', 'KFZ', 'Auto') the score stays below 0.35. Confirms low-base-score DE_* recognizers remain context-gated under en."
+
+# === EN long-form DATE_TIME patterns (Memodo cross-border item 4) ===
+# Four new patterns added to DateRecognizer in fork 184d0e1:
+#   Month DD, YYYY   0.95   "March 28, 2026"
+#   Mon DD, YYYY     0.85   "Mar 28, 2026" (or "Mar. 28, 2026")
+#   DD Month YYYY    0.95   "28 March 2026"
+#   Q[1-4] YYYY      0.85   "Q3 2026"
+# Only the 0.95 forms surface through Redakt's `DATE_TIME: 0.95` floor end-
+# to-end (the floor exists to drop NLP overfire on "today" / "next weekend").
+# The 0.85 forms are intentionally below the floor — same shape as the
+# `dd.mm.yy at 0.4` ambiguous-with-software-versions pattern — and are
+# anchored at the recognizer level by the fork's unit tests
+# (test_date_recognizer.py, fork 184d0e1) rather than here. If a future
+# Redakt config lowers the DATE_TIME floor, the 0.85 forms will start
+# surfacing and these fixtures can be extended with positives for them.
+
+- text: "Hi Sarah, regarding our purchase order PO-44231: the shipment was originally promised by March 28, 2026, can you confirm?"
+  language: en
+  expect: [PERSON, DATE_TIME]
+  notes: "Memodo pilot phrase 07-english-mfg-correspondence (compressed). Anchors the `Month DD, YYYY` 0.95 pattern on canonical English long-form correspondence between the DE HQ and a UK/IE supplier. Without the new pattern, stanford-deidentifier-base's NLP DATE label on 'March 28, 2026' scores below 0.95 and gets filtered by the consumer floor — the regex hit at 0.95 is the only DATE_TIME signal that now survives. PERSON ('Sarah') also surfaces — subset-matching tolerates the multi-PII shape. PO-44231 must NOT fire (internal reference, no recognizer covers it)."
+
+- text: "Order is scheduled for 28 March 2026 delivery from the Hamburg warehouse."
+  language: en
+  expect: [DATE_TIME]
+  notes: "Anchors the `DD Month YYYY` 0.95 pattern — British / European day-first form common on cross-border invoices and shipping notices. Different surface from the comma-separated `Month DD, YYYY` form so both patterns need their own anchor. (LOCATION 'Hamburg' is NOT asserted: stanford-deidentifier-base scores Hamburg below the Redakt LOCATION: 0.90 floor on this short phrase, so the entity does not surface end-to-end. Subset-matching means the test still passes when only DATE_TIME is required.)"
+
+- text: "march 28, 2026 was the original ship date per the previous email."
+  language: en
+  expect: [DATE_TIME]
+  notes: "Case-insensitivity anchor. PatternRecognizer compiles with re.IGNORECASE in its global_regex_flags (presidio fork pattern_recognizer.py:47), so lowercase 'march' must still hit `Month DD, YYYY` at 0.95. Pins that a future Presidio-side change that drops the global IGNORECASE flag (or adds a recognizer-local override) would fail CI here, even though the upper-case fixture above would continue to pass."
+
+- text: "Last batch shipped March 2026 with no follow-up cycles planned."
+  language: en
+  expect_clean: true
+  notes: "Negative anchor for `Month DD, YYYY` — bare month + year without a day MUST NOT match. The new patterns all require a day digit (Month DD, YYYY / DD Month YYYY) or a quarter prefix (Q[1-4] YYYY); a Month+Year-only form is intentionally NOT a pattern (overlaps too heavily with project-status prose like 'planned for January 2027'). stanford-deidentifier-base's DATE NER may flag 'March 2026' but its NLP score lands below the 0.95 floor and gets filtered. If a future recognizer adds a `Month YYYY` pattern at >=0.95 this fixture will fail — that's the intended guardrail."
+
+- text: "Section 32, 2026 of the policy was misquoted in the audit memo."
+  language: en
+  expect_clean: true
+  notes: "Day-range guardrail. Surface looks like `Month DD, YYYY` because of the `, 2026` suffix, but the leading 'Section' is not a month name AND the day '32' is outside the [1-31] character class in the new pattern. Anchors that an invalid day is rejected by the regex even when surrounding shape (comma + 4-digit year) is date-like. Companion guardrail to `March 32, 2026 invalid day` in the fork unit tests."

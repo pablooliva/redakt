@@ -19,7 +19,7 @@
 
 feature: 007 (transformers-nlp-backend)
 branch:  main
-commits: 1070180..798b266
+commits: 1070180..184d0e1
 notes:   MultiNlpEngine + multi.yaml + Dockerfile.multi + revision pin
          (chunks 1A, 1B, 5, 4c). 4e adds populated digest manifest +
          tamper test + atomic manifest write + retry-after-failure +
@@ -109,4 +109,25 @@ notes:   MultiNlpEngine + multi.yaml + Dockerfile.multi + revision pin
          + 88 eval (+7 fixtures including one negative anchor on the
          "Lieferadresse … Solarweg … ausgetauscht" phrasing that
          pinned the Zähler false-positive fix) + 350 unit/integration
-         tests pass. SHA range is the authoritative anchor.
+         tests pass. 184d0e1 extends DateRecognizer with four English
+         long-form patterns ("Month DD, YYYY" / "Mon DD, YYYY" /
+         "DD Month YYYY" / "Q[1-4] YYYY"). 4-digit-year named-month
+         forms score 0.95 (same shape as ee93662's dd.mm.yyyy split —
+         clears consumer DATE_TIME floors meant to drop NLP overfire
+         on "today" / "next weekend"); abbreviated 3-letter months and
+         Q[1-4]+year score 0.85 (incidental-match risk in technical
+         prose is a touch higher than for canonical spelled-out forms).
+         PatternRecognizer compiles with re.IGNORECASE globally
+         (pattern_recognizer.py:47), so a single Pascal-case alternation
+         matches any input casing — verified live against "march 28,
+         2026" / "q1 2026" on the running analyzer container. Closes
+         the English DATE_TIME recall gap surfaced by Memodo pilot
+         phrase 07-english-mfg-correspondence ("…originally promised
+         by March 28, 2026."). Day-range validation
+         ([1-9]|0[1-9]|[1-2][0-9]|3[0-1]) and Q-range ([1-4]) anchor
+         the negative cases ("March 32, 2026" / "Q5 2026" → no match).
+         All 34 prior parametrize entries in test_date_recognizer.py
+         continue to produce their original counts + spans (probed
+         live). REQ-011 floor preserved (pattern additions on an
+         existing recognizer are tolerated; nothing previously detected
+         is now missed). SHA range is the authoritative anchor.
