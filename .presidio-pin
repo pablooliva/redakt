@@ -19,7 +19,7 @@
 
 feature: 007 (transformers-nlp-backend)
 branch:  main
-commits: 1070180..2fbe4d9
+commits: 1070180..19d3c87
 notes:   MultiNlpEngine + multi.yaml + Dockerfile.multi + revision pin
          (chunks 1A, 1B, 5, 4c). 4e adds populated digest manifest +
          tamper test + atomic manifest write + retry-after-failure +
@@ -70,5 +70,21 @@ notes:   MultiNlpEngine + multi.yaml + Dockerfile.multi + revision pin
          MultiNlpEngine + xlm-roberta path; the caps pin docker
          rebuilds to the same version set the calibration baseline
          was anchored on. Remove the caps after an eval-suite +
-         calibration-report re-anchor on the new majors. SHA range
-         is the authoritative anchor.
+         calibration-report re-anchor on the new majors. 19d3c87 adds
+         `- en` to supported_languages on every DE_* recognizer in
+         default_recognizers.yaml (12 entries) — closes the gap where
+         English-speaking IT/CZ/NL subsidiary staff produced zero DE-
+         entity detections. Low-base-score DE_* (DE_PLZ 0.05, DE_KFZ
+         0.2-0.3, DE_HEALTH_INSURANCE 0.3, DE_FUEHRERSCHEIN 0.35 with
+         redakt-side 0.5 floor) remain context-gated on English text
+         because their CONTEXT lists are German-only and the +0.35
+         substring boost never matches English tokens (verified live:
+         "Order 80331 units" / "Project M-AB 1234" both return no PII
+         on en). High-base DE_* (DE_VAT_ID, DE_TAX_ID, DE_MASTR_ID,
+         DE_ID_CARD strict, DE_PASSPORT strict) fire structurally and
+         now surface on English correspondence mentioning German
+         entities. YAML-only; no recognizer code touched. REQ-011
+         floor preserved (additions are tolerated; the de baseline is
+         unchanged and the en baseline gains new entries). All 8
+         floor-contract + 81 eval + 350 unit/integration tests pass.
+         SHA range is the authoritative anchor.

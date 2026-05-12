@@ -95,5 +95,46 @@
 
 - text: "Cross-border invoice for DE123456789 from our UK branch."
   language: en
-  expect: [EU_VAT_ID]
-  notes: "DE prefix on ENGLISH text — DeVatIdRecognizer is de-only, so only EU_VAT_ID surfaces here. Pins the language-symmetry value."
+  expect: [EU_VAT_ID, DE_VAT_ID]
+  notes: "DE prefix on ENGLISH text. After DE_* recognizers were registered for both de and en (default_recognizers.yaml), DeVatIdRecognizer and EuVatIdRecognizer both fire on the DE-prefixed span as separate entities (different entity_type, same span, score 0.85 each — the German VAT context boost applies via substring-match on 'VAT' / 'invoice'). Pins the cross-border language symmetry on the DE_* en-registration change."
+
+# === DE_* recognizers registered for `en` — cross-border subsidiary coverage ===
+# Memodo's German HQ corresponds in English with its IT/CZ/NL subsidiaries.
+# Before this change, English requests yielded zero DE-entity detections;
+# the YAML now registers each DE_* recognizer for both `de` and `en`. The
+# positives below cover the structurally-confident recognizers (base score
+# >= 0.4 or boosted by German loanwords appearing verbatim in en text via
+# substring CONTEXT match) — low-base recognizers (DE_PLZ 0.05, DE_KFZ
+# 0.2-0.3, DE_HEALTH_INSURANCE 0.3, DE_FUEHRERSCHEIN 0.35) stay context-
+# gated because their CONTEXT lists are German-only and the +0.35 boost
+# requires the German vocabulary to literally appear in the text.
+
+- text: "For the new contract, our German HQ tax ID is 12345678903."
+  language: en
+  expect: [DE_TAX_ID]
+  notes: "DE_TAX_ID strict pattern (11 digits + ISO 7064 Mod 11,10 checksum) at base 0.5; observed live score is 1.0 (German tax-id context boosts via 'tax id'). Subsidiary staff writing in English to the DE HQ — before en registration this never surfaced. PhoneRecognizer also fires at 0.4 on the 11-digit span; subset-matching tolerates the extra."
+
+- text: "Please reference our Steuer-ID 12345678903 on the cross-border invoice."
+  language: en
+  expect: [DE_TAX_ID]
+  notes: "German loanword 'Steuer-ID' appears verbatim in English correspondence between EU subsidiaries. DE_TAX_ID's German CONTEXT entries substring-match the loanword token, boosting the score."
+
+- text: "His German Personalausweis L01X00T47 was attached to the onboarding form."
+  language: en
+  expect: [DE_ID_CARD]
+  notes: "DE_ID_CARD strict ICAO pattern at 0.4 base + German loanword 'Personalausweis' boosts via substring CONTEXT match -> live score 0.75. Confirms German loanwords in English text still trigger the German context boost (LemmaContextAwareEnhancer does substring match on raw tokens, language-agnostic). DE_PASSPORT relaxed pattern also fires at 0.4 on the same span (same overlap as the de fixture); subset-matching tolerates it."
+
+- text: "The BNetzA assigned MaStR number SEE901234567890 to the rooftop installation."
+  language: en
+  expect: [DE_MASTR_ID]
+  notes: "DE_MASTR_ID at base 0.85 — strongest DE recognizer, equally needed on English correspondence from EU subsidiaries. Companion to the de.yaml MaStR positive; pins language symmetry. Known side-effect on en: MedicalLicenseRecognizer (USA DEA, en-scoped) also fires at 1.0 on the 9-char substring `EE9012345` inside the 15-char MaStR — same substring collision that motivated scoping MEDICAL_LICENSE to en in fork 322eccf. Subset-matching tolerates the extra; follow-up may disable MEDICAL_LICENSE entirely (Memodo has no DEA use case)."
+
+- text: "Order 80331 units of the new inverter and ship 12345 brackets separately."
+  language: en
+  expect_clean: true
+  notes: "DE_PLZ negative on English text. Two bare 5-digit numbers (80331 = real Munich PLZ, 12345 = generic invalid) embedded in English commercial sentences. DE_PLZ base score is 0.05 and its CONTEXT list is German-only (Postleitzahl/Lieferadresse/Bauvorhaben/etc.) — none of those substring-match English tokens here, so the +0.35 boost never applies and 0.05 stays below the 0.35 default threshold. The central safety claim of registering DE_PLZ for en."
+
+- text: "Project M-AB 1234 will be reassigned to the Berlin team next sprint."
+  language: en
+  expect_clean: true
+  notes: "DE_KFZ negative on English text. Pattern `M-AB 1234` matches the bindestrich+leerzeichen KFZ regex (base 0.3) but with no German vehicle context ('Kennzeichen', 'KFZ', 'Auto') the score stays below 0.35. Confirms low-base-score DE_* recognizers remain context-gated under en."
