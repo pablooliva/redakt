@@ -19,7 +19,7 @@
 
 feature: 007 (transformers-nlp-backend)
 branch:  main
-commits: 1070180..19d3c87
+commits: 1070180..798b266
 notes:   MultiNlpEngine + multi.yaml + Dockerfile.multi + revision pin
          (chunks 1A, 1B, 5, 4c). 4e adds populated digest manifest +
          tamper test + atomic manifest write + retry-after-failure +
@@ -87,4 +87,26 @@ notes:   MultiNlpEngine + multi.yaml + Dockerfile.multi + revision pin
          floor preserved (additions are tolerated; the de baseline is
          unchanged and the en baseline gains new entries). All 8
          floor-contract + 81 eval + 350 unit/integration tests pass.
-         SHA range is the authoritative anchor.
+         798b266 adds four PV-industry German recognizers for the
+         Memodo cross-border item 3: DeEegAnlageRecognizer
+         (DE_EEG_ANLAGE, 33-char alphanumeric Anlagenschlüssel per
+         BDEW Beschluss BK6-13-200, base 0.4); DeMaloRecognizer
+         (DE_MALO, 11-digit Marktlokations-ID with BDEW Mod-10
+         weighted-digit-sum checksum — validate_result True boosts
+         pattern score to 1.0 per Presidio convention); DeMeloRecognizer
+         (DE_MELO, 33-char DE-prefixed Messlokations-ID per VDE-AR-N
+         4400, base 0.6 — overlaps DE_EEG_ANLAGE on DE-prefixed spans,
+         both surface intentionally); DeZaehlernummerRecognizer
+         (DE_ZAEHLERNUMMER, 8-15 alphanum meter number with ≥1-digit
+         lookahead to filter pure-letter German prose like
+         "ausgetauscht"/"Lieferadresse"; base 0.05 + CONTEXT-required
+         +0.35 boost = 0.40 just clears the 0.35 default floor; same
+         low-base+context model as DePlzRecognizer). All four
+         registered for de + en in default_recognizers.yaml so cross-
+         border subsidiary traffic surfaces the same identifiers as
+         native-German traffic. REQ-011 floor preserved (additions
+         tolerated; baseline names/scores untouched). 8 floor-contract
+         + 88 eval (+7 fixtures including one negative anchor on the
+         "Lieferadresse … Solarweg … ausgetauscht" phrasing that
+         pinned the Zähler false-positive fix) + 350 unit/integration
+         tests pass. SHA range is the authoritative anchor.

@@ -66,6 +66,48 @@
   expect: [DE_MASTR_ID]
   notes: "BNetzA Marktstammdatenregister: 3-letter object-type prefix + 12 digits. SEE = Stromerzeugungseinheit. Pilot fixture (06-site-visit-with-mastr); also pins the MEDICAL_LICENSE-substring fix (recognizer scoped to en in default_recognizers.yaml)."
 
+# === PV / energy-market identifiers (Memodo cross-border item 3) ===
+# Four new German PV-industry recognizers introduced in this commit cycle.
+# See presidio-fork ``de_{eeg_anlage,malo,melo,zaehlernummer}_recognizer.py``
+# for spec sources (BDEW, VDE-AR-N 4400, MsbG) and the gating rationale
+# (which base scores + which CONTEXT words clear which Redakt floors).
+
+- text: "EEG-Anlagenschlüssel E12345678901234567890123456789012 ist hinterlegt."
+  language: de
+  expect: [DE_EEG_ANLAGE]
+  notes: "33-char alphanumeric Anlagenschlüssel (BDEW Beschluss BK6-13-200). Base 0.4 already clears the 0.35 default floor; CONTEXT 'Anlagenschlüssel' adds a +0.35 boost on top. The 33-char width is the structural anchor — DE_EEG_ANLAGE is the looser 33-char [A-Z0-9] pattern (no country prefix required); DE_MELO is the stricter DE-prefixed subset."
+
+- text: "Messlokation DE0001234567890123456789012345678 prüfen."
+  language: de
+  expect: [DE_MELO, DE_EEG_ANLAGE]
+  notes: "VDE-AR-N 4400 MeLo-ID (DE + 31 alphanum = 33 chars). Fires BOTH DE_MELO (specific to DE-prefix) AND DE_EEG_ANLAGE (which the DE-prefixed string is also a member of). The dual-firing is intentional — the consumer's replacement template chooses which entity wins per span; the eval gate just asserts both surface. CONTEXT 'Messlokation' boosts DE_MELO."
+
+- text: "MaLo-ID 12345678907 für Lieferstelle Müller."
+  language: de
+  expect: [DE_MALO]
+  notes: "11-digit Marktlokations-ID with valid BDEW Mod-10 checksum. body 1234567890 weighted [2,1,…] with per-product digit-sum yields sum 43, check digit (10-3)%10 = 7. PatternRecognizer promotes validate_result=True matches to score 1.0, well above any floor. PhoneRecognizer may also fire on the 11-digit substring; the eval gate only asserts DE_MALO is in entities_found."
+
+- text: "Stromzähler 1ESY1160123456 wurde ausgetauscht."
+  language: de
+  expect: [DE_ZAEHLERNUMMER]
+  notes: "Landis+Gyr-style 14-char meter number. Base 0.05 + CONTEXT 'Stromzähler' (+0.35) = 0.40 — just clears the 0.35 default floor. The ≥1-digit lookahead in the pattern is the cheap structural anchor that filters pure-letter German prose ('ausgetauscht', 'Lieferadresse') from context-boosting into matches; without it the same +0.35 boost on a Zähler-context window would mis-flag the verb."
+
+- text: "Lieferadresse: Solarweg 12, 80331 München. Kein PV-Zubehör vorrätig."
+  language: de
+  expect_clean: false
+  expect: [DE_PLZ]
+  notes: "Negative anchor for DE_ZAEHLERNUMMER. Real address-block phrasing with PV/Solar vocabulary nearby — earlier base 0.05 without the ≥1-digit lookahead context-boosted pure-letter words ('Lieferadresse', 'ausgetauscht') into DE_ZAEHLERNUMMER hits when a Zähler-context word sat in the window. With the tightened pattern, only DE_PLZ should surface here; no DE_ZAEHLERNUMMER. expect: [DE_PLZ] is the positive assertion; the gate checks the *exact* set so DE_ZAEHLERNUMMER appearing here would fail."
+
+- text: "Anlagenschlüssel"
+  language: de
+  expect_clean: true
+  notes: "Bare common noun. Must not flag DE_EEG_ANLAGE / DE_MELO / DE_ZAEHLERNUMMER on the word alone — the noun is a CONTEXT trigger, not a PII span. Anchors the same broader-class guardrail family as the REQ-009 fixtures below."
+
+- text: "Marktlokation"
+  language: de
+  expect_clean: true
+  notes: "Bare common noun. Must not flag DE_MALO / DE_MELO on the word alone (CONTEXT trigger, not a span)."
+
 # === SDD-007 REQ-008/009: broader-class over-detection guardrails ===
 # Fifteen `expect_clean: true` bare-noun fixtures per RESEARCH-007 §7.4 (10
 # named + 5 sub-class extras). Under spaCy `de_core_news_lg` these flagged as
