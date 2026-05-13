@@ -18,3 +18,4 @@ Cross-cutting architectural decisions for this system. Each ADR captures a choic
 | [0004](0004-industry-vertical-recognizers-in-fork.md) | Accept industry-vertical recognizers in the Presidio fork's DE baseline (PV/energy) | Accepted | 2026-05-12 | Fork scope |
 | [0005](0005-dual-tier-scoring-date-patterns.md) | Use dual-tier scoring (0.95 canonical / 0.85 ambiguous) for DateRecognizer pattern additions | Accepted | 2026-05-12 | Score-arithmetic convention |
 | [0006](0006-inline-case-flag-scoping-and-iso-country-anchoring.md) | Wrap case-sensitive recognizer patterns in inline `(?-i:...)` and anchor structurally loose patterns on ISO 3166-1 alpha-2 | Accepted | 2026-05-12 | Recognizer-authorship conventions |
+| [0007](0007-closed-world-filtering-quasi-identifiers.md) | Closed-world filtering — anchor-conditional emission for quasi-identifier entities | Proposed | 2026-05-13 | Redakt policy / threat-model |

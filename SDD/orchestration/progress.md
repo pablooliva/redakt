@@ -892,3 +892,26 @@ After SDD-007 closed, Pablo decided the LangSmith regression eval scaffolding do
 - This block records the decision; the historical Step 4g entry above stays for audit.
 
 **Manual follow-up for Pablo:** none. The local eval suite + calibration reports cover regression. If a future model swap needs richer eval coverage, scope a separate ADR / spec for it; don't scaffold LangSmith implicitly.
+
+---
+
+# SDD Flow — Feature 008: closed-world-filtering
+
+**Started:** 2026-05-13
+**Mode:** Autonomous (`--auto --skip-clarify`)
+
+## Resolved Identifiers
+- `[###]` = `008`
+- `[feature-name]` = `closed-world-filtering`
+- `[YYYY-MM-DD]` = `2026-05-13`
+
+## Step 0: Scope Assessment — Proceed
+
+**Feature:** closed-world-filtering (008)
+**Decision:** Single SDD cycle — no decomposition needed.
+**Rationale:** All deliverables touch a single well-defined layer (post-filter after allow-list in the detect path), mirror an existing pattern (`entity_score_thresholds`), require changes to ≤5 files (`config.py`, `config.yaml`, `utils.py` or new filter module, `detect.py`, `anonymize.py`), and have clear, bounded test surface (unit tests + eval fixtures). ADR 0007 is already drafted, the integration seam is confirmed to exist, and the feature has no independent sub-behaviors that benefit from parallel delivery.
+
+## Step 1.5: Clarification Skipped (user opt-out via --skip-clarify)
+
+The user invoked the flow with `--skip-clarify`. Per the sdd-flow skill's Step 1.5, the pre-research clarification gate is suppressed. The Step 2c critical-review's executive summary will record this gate-skip for downstream visibility. The task description embeds full acceptance examples, out-of-scope items, and explicit trade-offs (closed-world-as-threat-model, gameability, HIPAA-incompatibility, DE_PLZ classification call) — the design concept is already crisply externalized in the request itself.
+
