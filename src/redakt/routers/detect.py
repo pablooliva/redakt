@@ -15,6 +15,7 @@ from redakt.services.audit import log_detection
 from redakt.services.language import detect_language
 from redakt.services.presidio import PresidioClient, get_presidio_client
 from redakt.utils import (
+    filter_by_closed_world,
     filter_by_entity_thresholds,
     merge_allow_lists,
     merge_entity_thresholds,
@@ -41,6 +42,8 @@ class DetectionResult:
         raw_results: list[dict] | None = None,
         language_confidence: float | None = None,
         allow_list_count: int | None = None,
+        closed_world_suppressed_count: int = 0,
+        closed_world_filtering_override: bool | None = None,
     ):
         self.has_pii = has_pii
         self.entity_count = entity_count
@@ -49,6 +52,8 @@ class DetectionResult:
         self.raw_results = raw_results or []
         self.language_confidence = language_confidence
         self.allow_list_count = allow_list_count
+        self.closed_world_suppressed_count = closed_world_suppressed_count
+        self.closed_world_filtering_override = closed_world_filtering_override
 
 
 async def run_detection(
@@ -59,6 +64,7 @@ async def run_detection(
     entities: list[str] | None = None,
     allow_list: list[str] | None = None,
     entity_score_thresholds: dict[str, float] | None = None,
+    closed_world_filtering: bool | None = None,
 ) -> DetectionResult:
     """Shared detection logic used by both API and web routes."""
     # Handle empty text first — before any other validation
@@ -118,6 +124,25 @@ async def run_detection(
     )
     results = filter_by_entity_thresholds(results, merged_thresholds)
 
+    # SEC-002a gate precedence: HIPAA auto-force > SEC-001a gate > per-request > instance default.
+    request_value = (
+        closed_world_filtering
+        if settings.allow_per_request_closed_world_override
+        else None
+    )
+    effective_cwf = (
+        request_value if request_value is not None else settings.closed_world_filtering
+    )
+    # When SEC-001a gate discards the request value, audit field records null (not the caller's value).
+    audit_cwf_override = closed_world_filtering if request_value is not None else None
+
+    results, suppressed_count = filter_by_closed_world(
+        results,
+        enabled=effective_cwf,
+        strong_anchors=settings.strong_anchors_set,
+        quasi_identifiers=settings.quasi_identifiers_set,
+    )
+
     entity_types = sorted(set(r["entity_type"] for r in results))
 
     return DetectionResult(
@@ -128,6 +153,8 @@ async def run_detection(
         raw_results=results,
         language_confidence=language_confidence,
         allow_list_count=len(merged_allow_list) if merged_allow_list else None,
+        closed_world_suppressed_count=suppressed_count,
+        closed_world_filtering_override=audit_cwf_override,
     )
 
 
@@ -147,6 +174,7 @@ async def detect_pii(
             entities=body.entities,
             allow_list=body.allow_list,
             entity_score_thresholds=body.entity_score_thresholds,
+            closed_world_filtering=body.closed_world_filtering,
         )
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc))
@@ -160,6 +188,8 @@ async def detect_pii(
         language_detected=result.language,
         source=source,
         allow_list_count=result.allow_list_count,
+        closed_world_suppressed_count=result.closed_world_suppressed_count,
+        closed_world_filtering_override=result.closed_world_filtering_override,
     )
 
     if verbose:

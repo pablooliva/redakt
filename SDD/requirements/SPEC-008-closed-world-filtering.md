@@ -12,7 +12,7 @@ delivery_mode: whole-feature
 - **Based on Research:** RESEARCH-008-closed-world-filtering.md
 - **Creation Date:** 2026-05-13
 - **Author:** Claude (with Pablo Oliva)
-- **Status:** Draft
+- **Status:** Implemented
 
 Closed-world filtering is a post-filter policy layer in Redakt that suppresses quasi-identifier spans (DATE_TIME, LOCATION, NRP, DE_PLZ) when no strong-anchor span (PERSON, EMAIL_ADDRESS, PHONE_NUMBER, etc.) is present in the same submission. It is off by default, explicitly opt-in, and per-request overridable. The threat model rests on the closed-world assumption: the text submission is the entirety of what the downstream consumer sees, so isolated quasi-identifiers cannot be joined against external data. The feature eliminates user-visible noise on anchor-free queries (weather, date lookups, geographic questions) in the Memodo PV paste-into-AI workflow while leaving anchor-present behavior completely unchanged.
 
@@ -601,7 +601,7 @@ A Pydantic `@model_validator` enforces:
 
 **Hides:** Pydantic validation rules, default-value materialization, the inline-comment text per REQ-010, set-precomputation of `strong_anchors` and `quasi_identifiers` as `frozenset[str]` values via `Settings.strong_anchors_set` and `Settings.quasi_identifiers_set` (computed once at config-load — mandatory per PERF-001, not optional; eliminates per-call list-to-set conversion). **Caching mechanism:** implemented as Pydantic v2 `@computed_field` with `@cached_property` semantics, OR as a private attribute populated by `@model_validator(mode='after')`. Plain `@property` is forbidden — it recomputes the frozenset on every access, defeating PERF-001. EDGE-007 (overlap ValidationError), FAIL-005 (unrecognized type warning/ValidationError path), SEC-002 (threat-model config comment verbatim text per REQ-010).
 
-**Risk:** Low — config-load failures are caught at startup; no runtime data path. Misconfiguration produces a startup error, not silent bad behavior.
+**Risk:** High — contains REQ-020 HIPAA enforcement gate; failure has regulatory exposure. A bug in the HIPAA auto-force logic would silently permit a HIPAA-scoped deployment to enable CWF or allow per-request CWF activation, violating Safe Harbor (45 CFR §164.514(b)). [Post-implementation spec adjustment 2026-05-13: risk tier corrected from Low to High per code review REVIEW-008 misclassification flag MODULE-002.]
 
 **Spec refs:** REQ-001, REQ-002, REQ-003, REQ-010, REQ-011, REQ-012, REQ-016, REQ-017, REQ-020, EDGE-007, SEC-001a, SEC-002, FAIL-001, FAIL-002, FAIL-005
 

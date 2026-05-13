@@ -1,0 +1,83 @@
+# Closed-world filtering acceptance fixtures (SPEC-008).
+#
+# All four fixtures set request_params: {closed_world_filtering: true} to
+# enable the filter per-request, regardless of the instance default in
+# config.yaml.  This allows the eval suite to run against a default-off
+# deployment without operator reconfiguration (COMPAT-001).
+#
+# Default anchor / quasi split (config.yaml defaults):
+#   strong_anchors:    [PERSON, EMAIL_ADDRESS, PHONE_NUMBER, IBAN_CODE,
+#                       CREDIT_CARD, DE_TAX_ID, DE_VAT_ID, DE_ID_CARD,
+#                       DE_PASSPORT, DE_SOCIAL_SECURITY, ...]
+#   quasi_identifiers: [DATE_TIME, LOCATION, NRP, DE_PLZ, DE_KFZ, ...]
+#
+# Acceptance example 1: Munich-weather query (no anchor → quasi suppressed)
+# -------------------------------------------------------------------------
+# Expected behaviour: DATE_TIME and LOCATION are quasi-identifiers.
+# With closed_world_filtering on, "München" (LOCATION) and date-like tokens
+# (DATE_TIME) are suppressed because no strong anchor (PERSON, EMAIL, etc.)
+# appears in the span list.
+- text: "Wie wird das Wetter heute in München?"
+  language: de
+  expect_clean: true
+  request_params:
+    closed_world_filtering: true
+  notes: >
+    Acceptance example 1 (SPEC-008 §4.1). Munich weather query: LOCATION
+    (München) and DATE_TIME (heute) are quasi-identifiers.  With no strong
+    anchor present, both are suppressed under closed-world filtering.  The
+    sentence is completely benign — expect_clean is the correct assertion.
+
+# Acceptance example 2: Stefan Berger Munich treatment record
+# -----------------------------------------------------------
+# PERSON is a strong anchor → all quasi-identifiers (LOCATION, DATE_TIME)
+# pass through alongside it.
+- text: "Rechnungsadresse:\nSolartechnik Berger GmbH\nMaximilianstraße 14\n80539 München\nDeutschland\nAnsprechpartner: Stefan Berger\nTel.: +49 89 9876543\nE-Mail: s.berger@solartechnik-berger.de"
+  language: de
+  expect: [DE_PLZ, PERSON, PHONE_NUMBER, EMAIL_ADDRESS]
+  request_params:
+    closed_world_filtering: true
+  notes: >
+    Acceptance example 2 (SPEC-008 §4.2). The address block + contact card
+    from the Item-7 multiline fixture is reused here with closed-world
+    filtering active.  PERSON (Stefan Berger) is a strong anchor so DE_PLZ
+    (quasi), PHONE_NUMBER (strong), and EMAIL_ADDRESS (strong) all emit.
+    LOCATION is NOT asserted — empirically absent when contact lines follow
+    the address block (same divergence note as the Item-7 fixture).
+
+# Acceptance example 3: PV invoice with anchor (DE_VAT_ID strong anchor)
+# -----------------------------------------------------------------------
+# DE_VAT_ID fires as a strong anchor → LOCATION, DATE_TIME pass through.
+- text: "Rechnung an Solarprofi Müller GmbH, USt-IdNr. DE123456789. Lieferung voraussichtlich am 15.05.2026 nach München."
+  language: de
+  expect: [DE_VAT_ID, EU_VAT_ID, DATE_TIME, LOCATION]
+  request_params:
+    closed_world_filtering: true
+  notes: >
+    Acceptance example 3 (SPEC-008 §4.3). PV invoice line: DE_VAT_ID
+    (DE123456789) acts as a strong anchor, so DATE_TIME (15.05.2026) and
+    LOCATION (München) are both retained.  EU_VAT_ID also fires on the same
+    span (intentional overlap, same as Item-1/6/10 behavior); SEPA_CREDITOR_ID
+    may also surface on the DE-prefixed span — subset matching tolerates
+    extras.  PERSON not asserted: 'Müller' absorbed into company span.
+
+# EDGE-008 gameable narrative: clinical language, no strong anchor
+# ---------------------------------------------------------------
+# If an attacker tries to extract health data by phrasing it as a description
+# rather than a named record, there is no PERSON anchor.  DATE_TIME and
+# LOCATION remain quasi-identifiers and are suppressed.  The sentence itself
+# is benign from the filter's perspective — the filter cannot judge intent,
+# only structure.
+- text: "The patient underwent treatment in Berlin on 12 January 2026 for condition X."
+  language: en
+  expect_clean: true
+  request_params:
+    closed_world_filtering: true
+  notes: >
+    EDGE-008 (SPEC-008 §5.8): gameable healthcare narrative.  No PERSON
+    anchor present → LOCATION (Berlin) and DATE_TIME (12 January 2026)
+    are quasi-identifiers and are suppressed.  This is the intended
+    behaviour: the filter removes the geotemporal quasi-identifiers that
+    could individualise an otherwise vague clinical description.
+    expect_clean because no remaining entity should surface after suppression
+    (the sentence contains no strong-anchor PII).

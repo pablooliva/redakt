@@ -112,6 +112,8 @@ def _emit_audit(
     file_type: str | None = None,
     file_size_bytes: int | None = None,
     operator: str | None = None,
+    closed_world_suppressed_count: int | None = None,
+    closed_world_filtering_override: bool | None = None,
 ) -> None:
     audit_logger = logging.getLogger("redakt.audit")
     record = audit_logger.makeRecord(
@@ -138,6 +140,17 @@ def _emit_audit(
         record.audit_data["file_size_bytes"] = file_size_bytes
     if operator is not None:
         record.audit_data["operator"] = operator
+    # REQ-013 / LOW-004 fix: always emit BOTH closed-world fields unconditionally.
+    # null sentinel (None) for closed_world_suppressed_count means "filter does not
+    # apply to this pipeline path" (document-upload). The field must be present as
+    # JSON null (not absent) so audit consumers can reliably distinguish:
+    #   - null: filter structurally inapplicable (document-upload path)
+    #   - 0:    filter enabled, no spans suppressed
+    #   - N>0:  filter enabled, N spans suppressed
+    # closed_world_filtering_override: null when omitted by caller OR when SEC-001a
+    # gate discarded the per-request value. Always emit the field (null is meaningful).
+    record.audit_data["closed_world_suppressed_count"] = closed_world_suppressed_count
+    record.audit_data["closed_world_filtering_override"] = closed_world_filtering_override
 
     try:
         audit_logger.handle(record)
@@ -160,6 +173,8 @@ def log_detection(
     language_detected: str,
     source: str,
     allow_list_count: int | None = None,
+    closed_world_suppressed_count: int = 0,
+    closed_world_filtering_override: bool | None = None,
 ) -> None:
     _emit_audit(
         "detect",
@@ -168,6 +183,8 @@ def log_detection(
         language_detected,
         source,
         allow_list_count=allow_list_count,
+        closed_world_suppressed_count=closed_world_suppressed_count,
+        closed_world_filtering_override=closed_world_filtering_override,
     )
 
 
@@ -178,6 +195,8 @@ def log_anonymization(
     source: str,
     allow_list_count: int | None = None,
     operator: str | None = None,
+    closed_world_suppressed_count: int = 0,
+    closed_world_filtering_override: bool | None = None,
 ) -> None:
     _emit_audit(
         "anonymize",
@@ -187,6 +206,8 @@ def log_anonymization(
         source,
         allow_list_count=allow_list_count,
         operator=operator,
+        closed_world_suppressed_count=closed_world_suppressed_count,
+        closed_world_filtering_override=closed_world_filtering_override,
     )
 
 
@@ -200,6 +221,9 @@ def log_document_upload(
     allow_list_count: int | None = None,
     operator: str | None = None,
 ) -> None:
+    # REQ-013: document-upload path emits explicit null sentinel for CWF fields (filter
+    # not applicable to document pipeline in v1). Null is meaningful — distinguishable
+    # from "filter applied, zero suppression" (0) on detect/anonymize paths.
     _emit_audit(
         "document_upload",
         entity_count,
@@ -210,4 +234,6 @@ def log_document_upload(
         file_type=file_type,
         file_size_bytes=file_size_bytes,
         operator=operator,
+        closed_world_suppressed_count=None,
+        closed_world_filtering_override=None,
     )

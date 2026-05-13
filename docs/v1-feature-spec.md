@@ -336,6 +336,23 @@ AI agents interact with exactly the same endpoints as the web app — no separat
 
 ---
 
+### Feature 7: Closed-World Filtering for Quasi-Identifiers
+
+**User story:** As an operator, I want weak quasi-identifier signals (location, date, nationality) to be suppressed when no strong personal-identity anchor is present in the detected span list, so that benign contextual content (e.g., "weather in Munich today") is not flagged as PII.
+
+Closed-world filtering introduces a semantic gate: quasi-identifier spans (e.g., `LOCATION`, `DATE_TIME`, `NRP`, `DE_PLZ`) are only emitted when at least one strong-anchor span (`PERSON`, `EMAIL_ADDRESS`, `PHONE_NUMBER`, `IBAN_CODE`, etc.) also appears. The gate runs after per-entity score threshold filtering. If no anchor is present, all quasi-identifier spans are dropped; always-emit spans (`ORGANIZATION`, `IP_ADDRESS`, `URL`, etc.) pass through unconditionally.
+
+The feature is **disabled by default** (`closed_world_filtering: false` in `config.yaml`) to preserve backward compatibility. Operators enable it instance-wide via config or the `REDAKT_CLOSED_WORLD_FILTERING` environment variable. Per-request override is supported via the `closed_world_filtering` field on `/api/detect` and `/api/anonymize` request bodies, subject to the `allow_per_request_closed_world_override` gate and HIPAA-incompatibility enforcement. The web UI always uses the instance default (no per-request toggle in the pages). All calls emit `closed_world_suppressed_count` and `closed_world_filtering_override` in the audit log. See `docs/customizations.md` for operator configuration reference and `SPEC-008` for the full specification.
+
+**API addition:** `closed_world_filtering: bool | null` field on `/api/detect` and `/api/anonymize` request bodies (null = use instance default).
+
+| Presidio gap | Redakt addition |
+|---|---|
+| Presidio emits every span above the score floor regardless of context | Closed-world gate drops quasi-identifiers when no identity anchor is present |
+| No concept of entity-class interdependence | `strong_anchors` / `quasi_identifiers` / always-emit classification in `entity_catalog.py` |
+
+---
+
 ## Next Steps
 
 After this spec is reviewed and agreed upon, create individual SDDs for each feature:

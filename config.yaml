@@ -80,3 +80,82 @@ supported_file_types:
 # --- Audit log size ---
 audit_log_max_bytes: 10485760    # 10 MB
 audit_log_backup_count: 5
+
+# --- Closed-world filtering ---
+# THREAT MODEL: This filter only holds when the submission is the FULL
+# context the downstream consumer sees. Agent workflows that combine the
+# snippet with external knowledge (CRM, email history, model parametric
+# knowledge) break the assumption.
+# GAMEABLE: Role-based references ("the patient", "the customer", "der Kunde")
+# do not trigger the anchor check — quasi-identifiers in such narratives will
+# pass through unredacted. Not safe for healthcare, social-services, or any
+# context using role-based identification.
+# HIPAA: Safe Harbor requires unconditional date removal — do not enable this
+# flag in Safe Harbor contexts. See regulatory_scope config for enforcement.
+# ART. 9: NRP (nationality, religion, politics) is classified as a
+# quasi-identifier under this filter. Operators who enable closed-world
+# filtering are responsible for documenting their Art. 9 lawful basis
+# separately. Redakt's audit log (closed_world_suppressed_count) does not
+# satisfy Art. 9 record-keeping on its own.
+# NOTE: Does NOT apply to /api/documents/upload (document pipeline) in v1 —
+# see RESEARCH-008 §System Data Flow (fifth call site) for rationale.
+# OVERRIDE: Per-request closed_world_filtering field is enabled by default.
+# Set allow_per_request_closed_world_override: false to disable per-request
+# override at the deployment boundary (see SEC-001a).
+closed_world_filtering: false
+
+# Regulatory scope for compliance enforcement gates.
+# Include "HIPAA" to prevent enabling closed_world_filtering (Safe Harbor
+# requires unconditional date removal — closed-world filter is incompatible).
+regulatory_scope: ["GDPR"]
+
+# Operator gate: set to false to prevent callers from using the per-request
+# closed_world_filtering override field. The effective value is always the
+# instance default above.
+allow_per_request_closed_world_override: true
+
+# When true, unrecognized entity types in the lists below raise a startup
+# ValidationError instead of only emitting a WARNING log line.
+strict_entity_validation: false
+
+# Strong anchors: entity types whose presence confirms a natural person is
+# identifiable. When any one of these is detected, quasi-identifier spans
+# are retained (not suppressed) even when closed_world_filtering is true.
+# MEDICAL_LICENSE note: US DEA-scoped. Known false-positive on DE_MASTR_ID
+# substrings. If disabled entirely in Presidio, removing it here is a no-op.
+# DE_KFZ note: Trivially traceable to owner via traffic records in DE.
+# Operators in jurisdictions where plate look-up is not trivially available
+# may remove DE_KFZ from this list (it becomes always-emit).
+strong_anchors:
+  - PERSON
+  - EMAIL_ADDRESS
+  - PHONE_NUMBER
+  - IBAN_CODE
+  - EU_VAT_ID
+  - BIC_CODE
+  - SEPA_CREDITOR_ID
+  - MEDICAL_LICENSE
+  - DE_TAX_ID
+  - DE_VAT_ID
+  - DE_ID_CARD
+  - DE_PASSPORT
+  - DE_SOCIAL_SECURITY
+  - DE_FUEHRERSCHEIN
+  - DE_LANR
+  - DE_TAX_NUMBER
+  - DE_HEALTH_INSURANCE
+  - DE_MASTR_ID
+  - DE_KFZ
+
+# Quasi-identifiers: entity types that are only re-identifying when joined
+# with a strong anchor. Suppressed when closed_world_filtering is true and no
+# anchor is present.
+# NRP (Art. 9): Operators enabling NRP suppression must document Art. 9
+# lawful basis in their GDPR Records of Processing Activities separately.
+# Operators who cannot accept this responsibility must remove NRP from this
+# list so NRP is always emitted (always-emit behavior).
+quasi_identifiers:
+  - DATE_TIME
+  - LOCATION
+  - NRP
+  - DE_PLZ

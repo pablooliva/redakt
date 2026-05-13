@@ -1,4 +1,5 @@
 from pydantic import BaseModel, Field
+from pydantic import StrictBool
 
 
 class DetectRequest(BaseModel):
@@ -8,6 +9,11 @@ class DetectRequest(BaseModel):
     entities: list[str] | None = None
     allow_list: list[str] | None = None
     entity_score_thresholds: dict[str, float] | None = None
+    # Per-request closed-world filtering override. None = use instance default.
+    # Null and absent are semantically identical (both resolve to instance default).
+    # StrictBool rejects coercible values ("true", 1, "yes", etc.) — only JSON
+    # true/false/null are accepted (FAIL-003 / MEDIUM-001 fix).
+    closed_world_filtering: StrictBool | None = None
 
 
 class EntityDetail(BaseModel):

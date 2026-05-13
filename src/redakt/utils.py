@@ -108,6 +108,46 @@ def filter_by_entity_thresholds(
     return [r for r in results if r["score"] >= thresholds.get(r["entity_type"], 0.0)]
 
 
+def filter_by_closed_world(
+    results: list[dict],
+    enabled: bool,
+    strong_anchors: frozenset[str],
+    quasi_identifiers: frozenset[str],
+) -> tuple[list[dict], int]:
+    """Filter quasi-identifier spans when no strong anchor is present.
+
+    Returns a tuple of (filtered_results, suppressed_count).
+    - filtered_results: spans to emit (input unchanged when enabled=False or anchor present)
+    - suppressed_count: number of spans dropped by the closed-world rule (0 if disabled)
+
+    When enabled=False, returns (results, 0) immediately — O(1) no-op (PERF-002).
+
+    Parameters `strong_anchors` and `quasi_identifiers` are pre-computed frozenset
+    values from Settings.strong_anchors_set / Settings.quasi_identifiers_set (PERF-001).
+    The caller must not pass raw list[str].
+    """
+    if not enabled:
+        return results, 0
+
+    # O(n) single pass: check anchor presence and collect quasi-identifier spans.
+    has_anchor = any(r["entity_type"] in strong_anchors for r in results)
+
+    if has_anchor:
+        # Anchor present: all spans pass through unchanged (REQ-008).
+        return results, 0
+
+    # No anchor: suppress quasi-identifier spans (REQ-007).
+    filtered: list[dict] = []
+    suppressed_count = 0
+    for r in results:
+        if r["entity_type"] in quasi_identifiers:
+            suppressed_count += 1
+        else:
+            filtered.append(r)
+
+    return filtered, suppressed_count
+
+
 def validate_instance_allow_list(allow_list: list[str]) -> list[str]:
     """Validate instance-wide allow list at startup. Logs warnings but never blocks startup.
 

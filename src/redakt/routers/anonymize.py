@@ -11,6 +11,7 @@ from redakt.services.audit import log_anonymization
 from redakt.services.language import detect_language
 from redakt.services.presidio import PresidioClient, get_presidio_client
 from redakt.utils import (
+    filter_by_closed_world,
     filter_by_entity_thresholds,
     merge_allow_lists,
     merge_entity_thresholds,
@@ -36,6 +37,8 @@ class AnonymizationResult:
         language: str,
         language_confidence: float | None = None,
         allow_list_count: int | None = None,
+        closed_world_suppressed_count: int = 0,
+        closed_world_filtering_override: bool | None = None,
     ):
         self.anonymized_text = anonymized_text
         self.mappings = mappings
@@ -43,6 +46,8 @@ class AnonymizationResult:
         self.language = language
         self.language_confidence = language_confidence
         self.allow_list_count = allow_list_count
+        self.closed_world_suppressed_count = closed_world_suppressed_count
+        self.closed_world_filtering_override = closed_world_filtering_override
 
 
 async def run_anonymization(
@@ -53,6 +58,7 @@ async def run_anonymization(
     entities: list[str] | None = None,
     allow_list: list[str] | None = None,
     entity_score_thresholds: dict[str, float] | None = None,
+    closed_world_filtering: bool | None = None,
 ) -> AnonymizationResult:
     """Shared anonymization logic used by both API and web routes."""
     # Empty text — return unchanged
@@ -115,12 +121,34 @@ async def run_anonymization(
     )
     results = filter_by_entity_thresholds(results, merged_thresholds)
 
+    # SEC-002a gate precedence: HIPAA auto-force > SEC-001a gate > per-request > instance default.
+    # Capture the raw per-request value before REPLACE merge (for audit field, REQ-013).
+    request_value = (
+        closed_world_filtering
+        if settings.allow_per_request_closed_world_override
+        else None
+    )
+    effective_cwf = (
+        request_value if request_value is not None else settings.closed_world_filtering
+    )
+    # When SEC-001a gate discards the request value, audit field records null (not the caller's value).
+    audit_cwf_override = closed_world_filtering if request_value is not None else None
+
+    results, suppressed_count = filter_by_closed_world(
+        results,
+        enabled=effective_cwf,
+        strong_anchors=settings.strong_anchors_set,
+        quasi_identifiers=settings.quasi_identifiers_set,
+    )
+
     # Anonymize: resolve overlaps, generate placeholders, replace text
     anonymized_text, mappings, entity_types = anonymize_entities(text, results)
 
     return AnonymizationResult(
         anonymized_text, mappings, entity_types, resolved_language, language_confidence,
         allow_list_count=len(merged_allow_list) if merged_allow_list else None,
+        closed_world_suppressed_count=suppressed_count,
+        closed_world_filtering_override=audit_cwf_override,
     )
 
 
@@ -141,6 +169,7 @@ async def anonymize(
             entities=body.entities,
             allow_list=body.allow_list,
             entity_score_thresholds=body.entity_score_thresholds,
+            closed_world_filtering=body.closed_world_filtering,
         )
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc))
@@ -155,6 +184,8 @@ async def anonymize(
         source=source,
         allow_list_count=result.allow_list_count,
         operator="replace",
+        closed_world_suppressed_count=result.closed_world_suppressed_count,
+        closed_world_filtering_override=result.closed_world_filtering_override,
     )
 
     return AnonymizeResponse(

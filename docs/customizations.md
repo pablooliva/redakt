@@ -275,3 +275,75 @@ Carried forward from working notes; intentionally unstarted.
 1. **Consider disabling `MEDICAL_LICENSE` entirely.** The en-scoped `MedicalLicenseRecognizer` (USA DEA pattern) collides with `DE_MASTR_ID` on `EE`-prefixed spans because both rely on Luhn-like digit shapes — originally surfaced in fork `322eccf`, now visible on `en` text after item 2's registration change. Memodo has no DEA use case, so the entity could be removed from `default_recognizers.yaml` rather than tolerated via subset-matching. Cost is one YAML toggle; benefit is one fewer overlap to explain to new operators.
 
 2. **SEPA *mandate* references intentionally not regex-recognized.** Mandate refs have no fixed structural shape — they range from short opaque tokens to free-form vendor strings — so any tight regex misses too many real cases and any loose regex matches too much prose. Pinned here as a deliberate non-decision so a future contributor doesn't re-litigate it without new evidence. If a structural anchor emerges (e.g., a vendor-specific prefix convention worth modeling), revisit.
+
+---
+
+<a id="item-8"></a>
+## Item 8 — Closed-world filtering for quasi-identifiers (2026-05-13, Redakt-only)
+
+**Redakt commits:** SDD-008 Chunk 1 + Chunk 2. No fork work, no image rebuild.
+
+This is a Redakt-side semantic gate implemented in `src/redakt/utils.py` (`filter_by_closed_world()`) and wired into the `/api/detect` and `/api/anonymize` request paths in `src/redakt/routers/`.
+
+### What it does
+
+Quasi-identifier spans (`DATE_TIME`, `LOCATION`, `NRP`, `DE_PLZ`) are suppressed when no strong-anchor span (`PERSON`, `EMAIL_ADDRESS`, `PHONE_NUMBER`, `IBAN_CODE`, `EU_VAT_ID`, `BIC_CODE`, `SEPA_CREDITOR_ID`, `MEDICAL_LICENSE`, `DE_TAX_ID`, `DE_VAT_ID`, `DE_ID_CARD`, `DE_PASSPORT`, `DE_SOCIAL_SECURITY`, `DE_FUEHRERSCHEIN`, `DE_LANR`, `DE_TAX_NUMBER`, `DE_HEALTH_INSURANCE`, `DE_MASTR_ID`, `DE_KFZ`) appears in the span list after threshold filtering. Always-emit spans (`ORGANIZATION`, `IP_ADDRESS`, `URL`, `CREDIT_CARD`, `CRYPTO`, `DE_BSNR`, `DE_HANDELSREGISTER`, `DE_ZAEHLERNUMMER`, `MAC_ADDRESS`) pass through unconditionally.
+
+**Threat-model assumption (verbatim from `config.yaml`):**
+
+```
+# THREAT MODEL: This filter only holds when the submission is the FULL
+# context the downstream consumer sees. Agent workflows that combine the
+# snippet with external knowledge (CRM, email history, model parametric
+# knowledge) break the assumption.
+# GAMEABLE: Role-based references ("the patient", "the customer", "der Kunde")
+# do not trigger the anchor check — quasi-identifiers in such narratives will
+# pass through unredacted. Not safe for healthcare, social-services, or any
+# context using role-based identification.
+# HIPAA: Safe Harbor requires unconditional date removal — do not enable this
+# flag in Safe Harbor contexts. See regulatory_scope config for enforcement.
+# ART. 9: NRP (nationality, religion, politics) is classified as a
+# quasi-identifier under this filter. Operators who enable closed-world
+# filtering are responsible for documenting their Art. 9 lawful basis
+# separately. Redakt's audit log (closed_world_suppressed_count) does not
+# satisfy Art. 9 record-keeping on its own.
+# NOTE: Does NOT apply to /api/documents/upload (document pipeline) in v1 —
+# see RESEARCH-008 §System Data Flow (fifth call site) for rationale.
+# OVERRIDE: Per-request closed_world_filtering field is enabled by default.
+# Set allow_per_request_closed_world_override: false to disable per-request
+# override at the deployment boundary (see SEC-001a).
+```
+
+### Configuration keys
+
+| Key | Type | Default | Description |
+|---|---|---|---|
+| `closed_world_filtering` | `bool` | `false` | Enable the filter instance-wide |
+| `strong_anchors` | `list[str]` | see `config.yaml` | Entity types that unlock quasi-identifier emission |
+| `quasi_identifiers` | `list[str]` | see `config.yaml` | Entity types suppressed when no anchor is present |
+| `allow_per_request_closed_world_override` | `bool` | `true` | Allow callers to override the instance default per-request |
+| `regulatory_scope` | `list[str]` | `["GDPR"]` | Regulatory context. `["HIPAA"]` blocks `closed_world_filtering: true` and forces `allow_per_request_closed_world_override: false` |
+| `strict_entity_validation` | `bool` | `false` | Raise a startup `ValidationError` on unknown entity names in `strong_anchors` / `quasi_identifiers` rather than just logging a warning |
+
+### Per-request override
+
+The `closed_world_filtering: bool | null` field on `/api/detect` and `/api/anonymize` request bodies lets individual API callers override the instance default. `null` (field omitted) means "use instance default". Per-request overrides are silently ignored when `allow_per_request_closed_world_override: false` — the effective value is always the instance default in that case. Use this gate in operator environments where callers should not be permitted to weaken the filter.
+
+### HIPAA incompatibility
+
+`closed_world_filtering: true` is incompatible with `regulatory_scope: ["HIPAA"]`. HIPAA Safe Harbor (45 CFR §164.514(b)) requires unconditional removal of all 18 PHI identifiers including geographic data below state level and dates. Suppressing geographic/temporal detection based on anchor presence would violate this requirement. Setting both raises a `pydantic.ValidationError` at startup. Additionally, HIPAA in `regulatory_scope` auto-forces `allow_per_request_closed_world_override: false` to prevent callers from enabling the filter per-request. Both behaviors are enforced at config-load time and cannot be overridden at runtime.
+
+### EDGE-005 note
+
+When a strong anchor is on the allow list (e.g., a person's name listed in `allow_list` so it is stripped before Presidio analyzes the text), the anchor span is absent from Presidio's output and the quasi-identifiers are suppressed as if no anchor were present. This is the correct behavior: the allow list represents terms that the operator has decided are not PII for this deployment; removing them from anchor consideration is the expected consequence. Operators who need geo/temporal data to surface regardless should either not list anchor names in the allow list, or disable `closed_world_filtering` for those requests.
+
+### Audit log fields
+
+Every `/api/detect` and `/api/anonymize` call emits two additional fields in the structured audit log:
+
+| Field | Type | Description |
+|---|---|---|
+| `closed_world_suppressed_count` | `int` | Number of spans dropped by the closed-world rule (0 if disabled or no suppression) |
+| `closed_world_filtering_override` | `bool \| null` | The per-request override value as received from the caller; null when the caller did not send a value or when the SEC-001a gate discarded it |
+
+These fields are always present, even when `closed_world_filtering: false`.

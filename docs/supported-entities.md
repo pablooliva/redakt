@@ -4,36 +4,38 @@ This is the canonical list of PII entity types that Microsoft Presidio (and ther
 
 The list is grouped by category. Generic entities work in any language with an NLP model loaded; country-specific entities are scoped to that country's language code.
 
+The **Classification** column applies to the closed-world filtering feature (SPEC-008). `strong_anchor` entities unlock quasi-identifier emission when present; `quasi_identifier` entities are suppressed when no anchor is present in the span list; `always_emit` entities pass through regardless of filtering state. Classification applies only to the Redakt-active entity set (`entity_catalog.py`) and is operator-configurable via `config.yaml`. See `docs/customizations.md` for the threat-model rationale.
+
 ## Generic — multilingual (NLP-based)
 
 Detected by the configured NLP engine (spaCy or Hugging Face transformers). Confidence varies by model and context — these are the entities most likely to need per-entity score tuning.
 
-| Entity | Description |
-|---|---|
-| `PERSON` | A full name |
-| `LOCATION` | Cities, countries, addresses, geographic features |
-| `ORGANIZATION` | Companies, agencies, institutions |
-| `NRP` | Nationality, religious or political group |
-| `DATE_TIME` | Absolute or relative dates and times |
+| Entity | Description | Classification |
+|---|---|---|
+| `PERSON` | A full name | `strong_anchor` |
+| `LOCATION` | Cities, countries, addresses, geographic features | `quasi_identifier` |
+| `ORGANIZATION` | Companies, agencies, institutions | `always_emit` |
+| `NRP` | Nationality, religious or political group | `quasi_identifier` |
+| `DATE_TIME` | Absolute or relative dates and times | `quasi_identifier` |
 
 ## Generic — pattern / checksum-based
 
 Regex- or checksum-validated. These typically come back at near-1.0 confidence and rarely need tuning.
 
-| Entity | Description |
-|---|---|
-| `BIC_CODE` | ISO 9362 Business Identifier Code (SWIFT) — 8 or 11 chars, ISO 3166-1 alpha-2 country slot |
-| `CREDIT_CARD` | Major credit card numbers (Luhn-validated) |
-| `CRYPTO` | Cryptocurrency wallet addresses |
-| `EMAIL_ADDRESS` | Email addresses |
-| `EU_VAT_ID` | EU VAT identification number (any of the 27 EU country prefixes) |
-| `IBAN_CODE` | International bank account numbers |
-| `IP_ADDRESS` | IPv4 / IPv6 addresses |
-| `MAC_ADDRESS` | Hardware MAC addresses |
-| `MEDICAL_LICENSE` | Generic medical license numbers (DEA) |
-| `PHONE_NUMBER` | International / regional phone numbers |
-| `SEPA_CREDITOR_ID` | SEPA Creditor Identifier (EPC scheme) — 8-35 chars, ISO 3166-1 alpha-2 country slot |
-| `URL` | Web URLs |
+| Entity | Description | Classification |
+|---|---|---|
+| `BIC_CODE` | ISO 9362 Business Identifier Code (SWIFT) — 8 or 11 chars, ISO 3166-1 alpha-2 country slot | `strong_anchor` |
+| `CREDIT_CARD` | Major credit card numbers (Luhn-validated) | `always_emit` |
+| `CRYPTO` | Cryptocurrency wallet addresses | `strong_anchor` |
+| `EMAIL_ADDRESS` | Email addresses | `strong_anchor` |
+| `EU_VAT_ID` | EU VAT identification number (any of the 27 EU country prefixes) | `strong_anchor` |
+| `IBAN_CODE` | International bank account numbers | `strong_anchor` |
+| `IP_ADDRESS` | IPv4 / IPv6 addresses | `always_emit` |
+| `MAC_ADDRESS` | Hardware MAC addresses | `always_emit` |
+| `MEDICAL_LICENSE` | Generic medical license numbers (DEA) | `strong_anchor` |
+| `PHONE_NUMBER` | International / regional phone numbers | `strong_anchor` |
+| `SEPA_CREDITOR_ID` | SEPA Creditor Identifier (EPC scheme) — 8-35 chars, ISO 3166-1 alpha-2 country slot | `strong_anchor` |
+| `URL` | Web URLs | `always_emit` |
 
 ## Country-specific
 
@@ -66,26 +68,26 @@ These recognizers are registered per language code in Presidio. To detect them, 
 
 German recognizers are registered under both `de` and `en` so cross-border correspondence from English-speaking subsidiaries surfaces the same identifiers as native-German text. Low-base context-gated recognizers (`DE_PLZ`, `DE_KFZ`, `DE_HEALTH_INSURANCE`, `DE_FUEHRERSCHEIN`, `DE_ZAEHLERNUMMER`) only fire when a German CONTEXT keyword sits in the surrounding window; high-base structural recognizers (`DE_VAT_ID`, `DE_TAX_ID`, `DE_MASTR_ID`, `DE_ID_CARD`, `DE_PASSPORT`, `DE_MELO`) fire on shape alone.
 
-| Entity | Description |
-|---|---|
-| `DE_TAX_ID` | Steuerliche Identifikationsnummer |
-| `DE_TAX_NUMBER` | Steuernummer |
-| `DE_VAT_ID` | Umsatzsteuer-Identifikationsnummer |
-| `DE_ID_CARD` | Personalausweis number |
-| `DE_PASSPORT` | German passport number |
-| `DE_FUEHRERSCHEIN` | German driver's license |
-| `DE_PLZ` | Postleitzahl (postal code) |
-| `DE_KFZ` | Kfz-Kennzeichen (vehicle plate) |
-| `DE_HEALTH_INSURANCE` | Krankenversicherungsnummer |
-| `DE_SOCIAL_SECURITY` | Sozialversicherungsnummer |
-| `DE_LANR` | Lebenslange Arztnummer (physician ID) |
-| `DE_BSNR` | Betriebsstättennummer (medical practice ID) |
-| `DE_HANDELSREGISTER` | Commercial register number |
-| `DE_MASTR_ID` | Marktstammdatenregister-Nummer (BNetzA energy-market identifier) |
-| `DE_EEG_ANLAGE` | Anlagenschlüssel — 33-char EEG plant identifier (BDEW BK6-13-200) |
-| `DE_MALO` | Marktlokations-ID — 11-digit market-location ID, BDEW Mod-10 checksum-validated to score 1.0 |
-| `DE_MELO` | Messlokations-ID — 33-char DE-prefixed metering-location ID (VDE-AR-N 4400) |
-| `DE_ZAEHLERNUMMER` | Zählernummer — 8-15 alphanumeric meter number, context-required |
+| Entity | Description | Classification |
+|---|---|---|
+| `DE_TAX_ID` | Steuerliche Identifikationsnummer | `strong_anchor` |
+| `DE_TAX_NUMBER` | Steuernummer | `strong_anchor` |
+| `DE_VAT_ID` | Umsatzsteuer-Identifikationsnummer | `strong_anchor` |
+| `DE_ID_CARD` | Personalausweis number | `strong_anchor` |
+| `DE_PASSPORT` | German passport number | `strong_anchor` |
+| `DE_FUEHRERSCHEIN` | German driver's license | `strong_anchor` |
+| `DE_PLZ` | Postleitzahl (postal code) | `quasi_identifier` |
+| `DE_KFZ` | Kfz-Kennzeichen (vehicle plate) | `strong_anchor` |
+| `DE_HEALTH_INSURANCE` | Krankenversicherungsnummer | `strong_anchor` |
+| `DE_SOCIAL_SECURITY` | Sozialversicherungsnummer | `strong_anchor` |
+| `DE_LANR` | Lebenslange Arztnummer (physician ID) | `strong_anchor` |
+| `DE_BSNR` | Betriebsstättennummer (medical practice ID) | `always_emit` |
+| `DE_HANDELSREGISTER` | Commercial register number | `always_emit` |
+| `DE_MASTR_ID` | Marktstammdatenregister-Nummer (BNetzA energy-market identifier) | `strong_anchor` |
+| `DE_EEG_ANLAGE` | Anlagenschlüssel — 33-char EEG plant identifier (BDEW BK6-13-200) | `strong_anchor` |
+| `DE_MALO` | Marktlokations-ID — 11-digit market-location ID, BDEW Mod-10 checksum-validated to score 1.0 | `strong_anchor` |
+| `DE_MELO` | Messlokations-ID — 33-char DE-prefixed metering-location ID (VDE-AR-N 4400) | `strong_anchor` |
+| `DE_ZAEHLERNUMMER` | Zählernummer — 8-15 alphanumeric meter number, context-required | `quasi_identifier` |
 
 ### 🇮🇹 Italy (`it`)
 

@@ -29,7 +29,7 @@ PHRASES: list[Phrase] = load_all_phrases()
 def _detect(http: httpx.Client, url: str, phrase: Phrase) -> dict:
     response = http.post(
         f"{url}/api/detect?verbose=true",
-        json={"text": phrase.text, "language": phrase.language},
+        json=phrase.build_request_body(),
     )
     response.raise_for_status()
     return response.json()
