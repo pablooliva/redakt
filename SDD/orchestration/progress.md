@@ -998,3 +998,233 @@ All 11 findings from the Step 2c critical review resolved. Artifacts updated:
 **ADR-0007** — amended in-place: `DE_STEUER_ID` → `DE_TAX_ID` in §Decision item 1; naming note added to §Context.
 
 **CRITICAL-RESEARCH-closed-world-filtering-20260513.md** — "## Findings Addressed" section appended with per-finding resolution summary and specific line/section references.
+
+## Step 3a: Planning subagent — Progress
+
+**Date:** 2026-05-13
+**Phase:** Planning (Feature 008 — closed-world filtering for quasi-identifiers)
+**Status:** Complete
+**Artifact:** `SDD/requirements/SPEC-008-closed-world-filtering.md`
+
+**Spec summary:**
+
+- Frontmatter: `review_panel: [security, performance, data-modeling, api-contract, module-depth, reliability, privacy]` (privacy added for GDPR Art. 9 / NRP); `eval_required: false`; `cross_cutting_decisions: []`; `delivery_mode: whole-feature`.
+- 19 functional requirements (REQ-001 through REQ-019) covering: entity-class defaults (full 19-entity strong-anchor list + 4-entity quasi-identifier list), off-by-default flag, per-request override on both endpoints, suppression logic, post-filter ordering, config comment, config schema validation, no-overlap constraint, audit logging (`closed_world_suppressed_count`), eval-loader extension, document-upload out-of-scope, MEDICAL_LICENSE disposition, NRP review-panel gate, web UI API-only, signature confirmation.
+- 4 NFRs: PERF-001 (O(n), <1ms), PERF-002 (O(1) no-op), SEC-001 (trusted caller), COMPAT-001 (default byte-for-byte identical).
+- 10 edge cases (EDGE-001 through EDGE-010) with explicit behavior contracts.
+- 4 failure scenarios (FAIL-001 through FAIL-004) with trigger, expected behavior, and recovery.
+- 5 modules: MODULE-001 (filter function in utils.py), MODULE-002 (config schema), MODULE-003 (per-request override threading), MODULE-004 (audit logging extension), MODULE-005 (eval-loader extension).
+- All 10 research open questions resolved (Q1: doc-upload out-of-scope; Q2: boolean-only per-request override; Q3: suppressed_count audit field; Q4: generic request_overrides on Phrase; Q5: API-only per-request override; Q6: NRP review-panel gate; Q7: DE_KFZ conservative default; Q8: MEDICAL_LICENSE disposition noted; Q9: signature additions confirmed; Q10: audit field addresses on-call debug surface).
+- Quality checklist: all items verified.
+
+**Safety-net status:** 7 reads / 0 nested subagents (under budget).
+
+## Step 3a-2: Planning Completion + Glossary
+
+**Date:** 2026-05-13
+**Phase:** Planning Completion + Glossary Delta (Feature 008 — closed-world filtering)
+**Artifact:** `SDD/requirements/SPEC-008-closed-world-filtering.md` (validated; no gaps found)
+**Glossary:** `SDD/UBIQUITOUS_LANGUAGE.md` (1 term added)
+
+### Checklist verification result: PASS — no gaps found; 0 inline fixes required
+
+All required sections present and substantive:
+
+- **Executive Summary:** research ref, date 2026-05-13, author, status Draft. PASS.
+- **Research Foundation:** production issues with real examples, 4 stakeholders, system integration table with file:line refs. PASS.
+- **Intent:** problem statement, solution approach, 5-scenario expected-outcomes block. PASS.
+- **Success Criteria:** REQ-001–REQ-019 (functional) + PERF-001/002, SEC-001/002, COMPAT-001 (non-functional with metrics); all traceable to research. PASS.
+- **Edge Cases:** EDGE-001–EDGE-010 with research refs, current/desired behavior, test approach. PASS.
+- **Failure Scenarios:** FAIL-001–FAIL-004 with trigger, expected behavior, communication, recovery. PASS.
+- **Implementation Constraints:** context plan (<40%), 9 essential files with file:line refs, delegation guide, 5 technical constraints. PASS.
+- **Modules:** MODULE-001–MODULE-005; each has Public Interface, Hides, Risk, Spec refs. Every REQ/EDGE/FAIL maps to ≥1 module. Risk tiers plausible (Low/Medium). No shallow modules. PASS.
+- **Validation Strategy:** 19 unit tests, 7 integration tests, 6 eval fixtures (with loader dependency noted), 2 perf benchmarks, 4 manual steps, stakeholder sign-off list. PASS.
+- **Dependencies and Risks:** no new external deps; RISK-001–RISK-005 each with mitigation. PASS.
+- **Implementation Notes:** approach, delegation, 6 critical considerations. PASS.
+- **No TODOs / unfilled placeholders / [YYYY-MM-DD] literals.** PASS.
+- **No internal contradictions** (REQ-007/REQ-008 suppress-vs-emit, EDGE-005 allow-list ordering, EDGE-004 always-emit passthrough all internally consistent). PASS.
+- **Canonical glossary terms used consistently throughout.** PASS.
+
+### Frontmatter confirmation
+
+- `review_panel: [security, performance, data-modeling, api-contract, module-depth, reliability, privacy]` — PRESENT (privacy added for GDPR Art. 9 NRP; noted in Executive Summary).
+- `eval_required: false` — PRESENT.
+- `cross_cutting_decisions: []` — PRESENT.
+- `delivery_mode: whole-feature` — PRESENT.
+- `## Delivery Slices` section — ABSENT (correctly omitted per `delivery_mode: whole-feature`). PASS.
+
+### Glossary deltas
+
+**1 term added to `SDD/UBIQUITOUS_LANGUAGE.md`:**
+
+- **always-emit entity** (Entities section) — entity type belonging to neither `strong_anchors` nor `quasi_identifiers`; passes through `filter_by_closed_world()` unchanged regardless of flag; does not satisfy the anchor check, and is not subject to suppression. Current set: `DE_BSNR`, `DE_HANDELSREGISTER`, `DE_MALO`, `DE_MELO`, `DE_EEG_ANLAGE`, `DE_ZAEHLERNUMMER`, `IP_ADDRESS`, `CRYPTO`. Reference: SPEC-008 REQ-002, MODULE-001, EDGE-004. Added because: used ~8 times in the spec across REQ-002, MODULE-001, and EDGE-001/004/010; a distinct third classification state alongside `strong anchor` and `quasi-identifier`; could be confused with either neighbor by implementers (not an anchor, not suppressible).
+
+**Terms examined and not added:**
+- `REPLACE semantics` — request-body override merge logic (non-None value wins); implementation detail, one-off vocabulary; not drift-prone.
+- `anchor sweep` — single occurrence in MODULE-001 Hides; implementation detail.
+- `suppression predicate` — single occurrence in MODULE-001 Hides; implementation detail.
+
+**No existing glossary entries contradicted or requiring update.** The spec's own `## Glossary Delta` section (lines 575–585) is confirmed accurate: the 6 terms it references (`strong anchor`, `quasi-identifier`, `closed-world assumption`, `closed-world filtering`, `post-filter`, `per-request override`) were all added at Step 2a-2 and are used consistently.
+
+### Next step
+
+Ready for **Step 3b: ADR Capture from Spec Frontmatter**. This is expected to be a no-op — `cross_cutting_decisions: []` in frontmatter indicates the planning subagent made no new cross-cutting decisions requiring ADR capture. ADR-0007 remains the authoritative record for all closed-world filtering decisions.
+
+## Step 3c: Panel Review
+
+7-specialist panel review of SPEC-008 complete. Verdict: **STOP AND RECONSIDER**. Findings: HIGH=2, MEDIUM=9, LOW=6. Specialists with no concerns: none. Specialists with findings: security=3, performance=3, data-modeling=3, api-contract=3, module-depth=3, reliability=3, privacy=4. Panel review: `SDD/reviews/PANEL-SPEC-closed-world-filtering-20260513.md`.
+
+**Top concerns driving the verdict:**
+1. [HIGH] REQ-017 defers NRP/GDPR Art. 9 classification to "the privacy specialist on the panel" without proposing a resolution — the spec itself must take a position before proceeding.
+2. [HIGH] SEC-001 asserts "trusted caller" without naming the authentication mechanism or providing an operator gate to disable the per-request relaxation knob.
+3. [MEDIUM, cross-specialist] MODULE-001 return-type ambiguity (tuple vs separate count helper) + REQ-013 audit-coverage gap on document-path will cause implementation arguments and require a fix-and-re-review cycle.
+
+**Next step:** Bounded fix-and-re-review loop per Step 3c (the parent orchestrator handles this; this subagent's output is the review document and the verdict only). Recommend a single fix iteration addressing the 2 HIGH findings + the 4–6 most impactful MEDIUMs before re-running the panel.
+
+## Panel Review Iterations
+
+### Iteration 1 — 2026-05-13
+- Verdict: STOP AND RECONSIDER
+- Findings: HIGH=2, MEDIUM=9, LOW=6
+- Panel review doc: SDD/reviews/PANEL-SPEC-closed-world-filtering-20260513.md
+- Next action: spawn fix subagent to resolve all HIGH+MEDIUM findings
+
+
+### Step 3c iter 1 — Fix Subagent run (2026-05-13)
+
+- Model: claude-sonnet-4-6
+- Read budget used: 4 of 10
+- Nested subagents: 0 of 4
+- Pre-fix: HIGH=2, MEDIUM=9, LOW=6 (17 total)
+- Post-fix: HIGH=0, MEDIUM=0, LOW=0 resolved (0 deferred)
+- HIGH delta: −2 (both resolved — REQ-017 NRP panel-gate replaced with decisive quasi-identifier position + Art.9 operator-responsibility clause; SEC-001 trust model made explicit with new SEC-001a operator config gate)
+- MEDIUM delta: −9 (all 9 resolved)
+- LOW delta: −6 (all 6 resolved)
+- Artifacts written:
+  - SDD/requirements/SPEC-008-closed-world-filtering.md (updated in place — all 17 findings addressed)
+  - SDD/reviews/PANEL-SPEC-closed-world-filtering-20260513.md (appended "Findings Addressed — Iteration 1" section)
+- New requirements added: REQ-020, REQ-021, SEC-001a, SEC-003, REL-001, FAIL-005, PERF-001 sub-sections
+- Next action: orchestrator routes to re-review (Step 3c iter 1 re-panel) to verify no HIGH/MEDIUM findings persist
+
+
+### Step 3c iter 2 — Panel Re-Review (2026-05-13)
+
+- Model: claude-opus-4-7
+- Read budget used: 4 of 10
+- Nested subagents: 0 of 4 (specialist lenses applied as discrete passes, consistent with iter-1)
+- Pre-review (iter-1 fix-claimed state): HIGH=0, MEDIUM=0, LOW=0
+- Post-review (iter-2 panel findings): HIGH=0, MEDIUM=5, LOW=4
+- Iter-1 → iter-2 delta: HIGH 2→0 (−2), MEDIUM 9→5 (−4), LOW 6→4 (−2) — strict decrease across all severities
+- Progress-stall check: PASS (HIGH strictly decreased; MEDIUM strictly decreased even though verdict still REVISE)
+- Verdict: REVISE BEFORE PROCEEDING (5 MEDIUM, including one cross-domain MEDIUM across performance + module-depth + api-contract)
+- Placation audit: all 17 iter-1 findings verified against actual spec edits; no placating edits detected — the two HIGH findings are genuinely resolved with substantive position-taking text. New iter-2 findings are (a) internal inconsistencies introduced by section-by-section editing in iter-1 (stale references in RISK-004, Stakeholder Sign-off, MODULE-002 Hides; MODULE-001 list[str]/frozenset[str] signature contradiction with PERF-001), (b) gaps in the new runtime enforcement (REQ-020 doesn't gate per-request override path under HIPAA), (c) previously-unsurfaced issues (canonical entity-set source-of-truth in REQ-011 rule 3; MODULE-003/MODULE-004 don't thread the new closed_world_filtering_override audit field).
+- Top-3 finding titles:
+  1. [MED, cross-domain] MODULE-001 public signature contradicts PERF-001 set pre-computation contract (list[str] vs frozenset[str])
+  2. [MED] MODULE-003 + MODULE-004 do not thread the new closed_world_filtering_override audit field (REQ-013 / SEC-001(d) gap)
+  3. [MED] REQ-020 HIPAA gate only covers instance default, not per-request override
+- Artifacts written:
+  - SDD/reviews/PANEL-SPEC-closed-world-filtering-20260513.md (appended "## Iteration 2 — 2026-05-13" section preserving iter-1 audit trail)
+- Next action: orchestrator routes to fix iteration 3 (final permitted iteration of max 3) to resolve the 5 MEDIUMs — focus is a cross-reference sweep over MODULE-001/MODULE-002/MODULE-003/MODULE-004 signatures and "Hides" + RISK-004 + Stakeholder Sign-off, plus REQ-020 scope extension and REQ-011 rule 3 source-of-truth specification.
+
+### Iteration 2 — 2026-05-13
+- Verdict: REVISE BEFORE PROCEEDING
+- Findings: HIGH=0, MEDIUM=5, LOW=4
+- Progress-stall check: PASS (strict decrease across all severities)
+- Pattern: stale-text regression — iter-1 normative edits not swept through older sections
+- Next action: iteration 3 fix (cross-reference sweep)
+
+
+---
+
+## Step 3c iter 3 fix: Fix Subagent
+
+**Subagent:** claude-sonnet-4-6
+**Date:** 2026-05-13
+**Role:** Fix subagent — iteration 3 of max 3 (final iteration of the Step 3c fix loop)
+**Counter file:** SDD/orchestration/counters/3c-fix2-2026-05-13_14-02-05.md
+**Pre-fix finding count:** HIGH=0, MEDIUM=5, LOW=4
+
+### Work performed
+
+Addressed all 5 MEDIUM and all 4 LOW findings from the iteration-2 panel review. Primary fix shape: cross-reference sweep (stale-text regressions) plus three targeted gap closures.
+
+**MEDIUM-A1 (REQ-020 HIPAA per-request override gap):** Extended REQ-020 with a "Per-request override gating under HIPAA scope" clause. When `regulatory_scope` includes HIPAA, `allow_per_request_closed_world_override` is auto-forced to `false` at config-load with a startup INFO log line. "Scope limitation (explicit)" paragraph documents the HIPAA-only enforcement asymmetry.
+
+**MEDIUM-A2 (MODULE-001 signature ↔ PERF-001 frozenset contradiction):** Updated MODULE-001 Public Interface signature to `frozenset[str]` parameters. Extended docstring with explicit "never receives raw lists" note. Removed stale "Set conversion of list parameters" entry from MODULE-001 Hides. Updated MODULE-002 Hides: "if desired" → "mandatory per PERF-001."
+
+**MEDIUM-A3 (MODULE-003/MODULE-004 missing override field threading):** Rewrote MODULE-003 Hides to specify `closed_world_filtering_override` threading semantics (raw pre-merge value, before REPLACE logic, before SEC-001a gate). Updated MODULE-004 Public Interface with explicit two-parameter function signatures for both `log_detection()` and `log_anonymization()`. Updated Spec refs for both modules.
+
+**MEDIUM-A4 (stale-text regression sweep):** Updated RISK-004 (old panel-gate → resolved NRP position with Art. 9 operator responsibility mitigation). Replaced Stakeholder Sign-off privacy specialist gate with operator acknowledgment. Fixed MODULE-002 "if desired" → "mandatory." Updated line 18 review_panel note to reflect multi-iteration panel history and confirmed gate removal.
+
+**MEDIUM-A5 (REQ-011 canonical-set source-of-truth):** Added explicit "Canonical-set source-of-truth" sub-block to REQ-011 rule 3: constant lives at `src/redakt/entity_catalog.py` (`CANONICAL_ENTITY_TYPES: frozenset[str]`); maintained manually alongside doc; CI lint test (`tests/unit/test_entity_catalog.py`) enforces no drift; constant wins for validation; REQ-021 classification column is doc-level (CI validates both). Post-upgrade strict-mode note added (LOW-A1 folded in).
+
+**LOW-A2 (EDGE-009 enforcement asymmetry):** Added "Enforcement asymmetry (acknowledged)" paragraph to EDGE-009. States HIPAA gets ValidationError; non-HIPAA healthcare gets only config comment + EDGE-009 guidance. Intentional asymmetry documented.
+
+**LOW-A3 (REQ-017 composition gap):** Added "V1 composition gap (acknowledged)" paragraph to REQ-017. Documents binary design, `suppressed_by_category` v2 path, operator responsibility for Art. 9 record-keeping outside Redakt in v1.
+
+**LOW-A4 (line 19 past-tense):** Folded into MEDIUM-A4 sweep.
+
+### Artifacts written
+
+- `SDD/requirements/SPEC-008-closed-world-filtering.md` (updated)
+- `SDD/reviews/PANEL-SPEC-closed-world-filtering-20260513.md` (appended: "Findings Addressed — Iteration 2")
+
+### Post-fix finding count
+
+HIGH=0, MEDIUM=0 (target), LOW=0 — all 9 iter-2 findings resolved. This is the final permitted iteration. Flow may proceed to Step 3d.
+
+## Step 3c iter 3: Panel Re-Review (final)
+
+- Model: claude-opus-4-7
+- Date: 2026-05-13
+- Iteration: 3 of max 3 (final permitted)
+- Read budget used: 6 of 10 (SPEC-008 full, panel review iter-1 + iter-2 + iter-2 fix appendix, progress.md targeted reads)
+- Nested subagents: 0 of 4 (specialist lenses applied as discrete passes, consistent with iters 1 and 2)
+- Pre-review (iter-2 fix-claimed state): HIGH=0, MEDIUM=0, LOW=0
+- Post-review (iter-3 panel findings): HIGH=0, MEDIUM=0, LOW=3
+- Iter-2 → iter-3 delta: HIGH 0→0 (unchanged at zero), MEDIUM 5→0 (−5), LOW 4→3 (−1) — strict decrease across MEDIUM and LOW; HIGH was already zero
+- Progress-stall check: PASS (MEDIUM strictly decreased; verdict is PROCEED → stall check is moot)
+- **Verdict: PROCEED**
+- Placation audit: all 9 iter-2 findings (5 MEDIUM, 4 LOW) verified line-by-line against actual spec edits. No placating edits detected. The iter-3 fix is the cleanest of the three iterations — cross-reference sweep landed without introducing new stale-text regressions; type-contract contradictions resolved; HIPAA gate extended to cover per-request override path; canonical-set source-of-truth fully specified; audit-field threading enumerated in MODULE-003 and MODULE-004.
+- Remaining LOW findings (3) are below the PROCEED severity gate and recoverable at Step 4b/4d:
+  1. [LOW, api-contract] MODULE-004 spec-refs parenthetical formatting (`(SPEC-006)` ambiguous — cosmetic).
+  2. [LOW, cross-cutting] Validation Strategy missing enumerated tests for REQ-020 HIPAA enforcement (instance-default ValidationError, auto-force INFO log, per-request silent-ignore).
+  3. [LOW, cross-cutting] Validation Strategy missing enumerated tests for `closed_world_filtering_override` audit field across caller-set, omitted, SEC-001a-gated, and document-upload-path scenarios.
+- Artifacts written:
+  - SDD/reviews/PANEL-SPEC-closed-world-filtering-20260513.md (appended "## Iteration 3 — 2026-05-13" section preserving iter-1 and iter-2 audit trail; final length 752 lines)
+- Next action: orchestrator exits the Step 3c fix loop with success; flow proceeds to Step 3d (spec finalization) → Step 3e (artifact distillation, where the 3 remaining LOW findings may optionally be picked up) → Step 4 (implementation).
+
+## Step 3d: Spec Critical Review
+
+Adversarial generalist review of SPEC-008 (post-panel iter 3) complete. Verdict: PROCEED WITH CAUTION. Findings: HIGH=0, MEDIUM=4, LOW=6. Cross-iteration cruft observations: two residual panel-gate references survived the iter-3 sweep (REQ-001 line 126 DE_KFZ "Review-panel privacy specialist should confirm"; Stakeholder Sign-off line 704 "Security specialist (review panel) confirm SEC-001"); three new Settings fields introduced across fix-iterations (`regulatory_scope`, `allow_per_request_closed_world_override`, `strict_entity_validation`) are absent from MODULE-002 Public Interface; seven REQ/EDGE/SEC/FAIL identifiers (including the entire REQ-020 HIPAA runtime path and FAIL-005 typo path) are unreferenced by any module Spec refs; the four overlapping policy gates (instance, per-request, SEC-001a, REQ-020 HIPAA auto-force) lack a consolidated precedence table; Validation Strategy is iter-0-shaped — does not enumerate tests for REQ-015/017/018/020/021, SEC-001a, FAIL-005, or MODULE-001 tuple return. Review document: SDD/reviews/CRITICAL-SPEC-closed-world-filtering-20260513.md.
+
+### Step 3e — Address Spec Findings subagent run
+
+**Date:** 2026-05-13
+**Trigger:** Panel iter-3 PROCEED (3 LOW remaining) + generalist critical review PROCEED WITH CAUTION (0 HIGH, 4 MEDIUM, 6 LOW)
+
+**Findings resolved:**
+
+Critical MEDIUM-1 (gate precedence): Added SEC-002a precedence sub-section with 8-row truth table.
+Critical MEDIUM-2 (MODULE-002 stale interface): Updated to 6 fields, updated Spec refs, pinned frozenset caching mechanism.
+Critical MEDIUM-3 (Validation Strategy iter-0-shaped): Added 13 unit test bullets + 6 integration test bullets covering all unreferenced REQ/EDGE/SEC/FAIL identifiers.
+Critical MEDIUM-4 (REQ-004 merge snippet missing SEC-001a): Rewrote code snippet with SEC-001a gate before REPLACE merge.
+Critical LOW-1 (DE_KFZ panel-gate language): Removed. Replaced with operator guidance.
+Critical LOW-2 (Stakeholder Sign-off security panel-gate): Converted to Step 4b engineering checklist item.
+Critical LOW-3 (SPEC-006 §SEC-001 namespace collision): Applied `SPEC-006 §SEC-001` convention.
+Critical LOW-4 (REQ-007 allow-list clause): Added post-allow-list sentence.
+Critical LOW-5 (REQ-014 request_overrides schema): Specified reserved nested key.
+Critical LOW-6 (Glossary strong anchor lag): Updated UBIQUITOUS_LANGUAGE.md to 19 entities matching REQ-001.
+Panel LOW-a (MODULE-004 spec-refs formatting): Disambiguated per-finding.
+Panel LOW-b (REQ-020 test coverage): Resolved via Validation Strategy expansion.
+Panel LOW-c (audit field test coverage): Resolved via integration test expansion.
+Additional: Line 19 tense fix, PERF-001 caching mechanism specified, RISK-005 Step 4 check added, MODULE-001 EDGE-005 ref added, MODULE-003 SEC-003 ref added.
+
+**Artifacts written:**
+- `SDD/requirements/SPEC-008-closed-world-filtering.md` (updated)
+- `SDD/reviews/PANEL-SPEC-closed-world-filtering-20260513.md` (appended)
+- `SDD/reviews/CRITICAL-SPEC-closed-world-filtering-20260513.md` (appended)
+- `SDD/UBIQUITOUS_LANGUAGE.md` (updated)
+
+**Reads used:** 9/10. No safety-net trip.
+**Status:** COMPLETE. All findings resolved. Spec ready for Step 4 (implementation).
