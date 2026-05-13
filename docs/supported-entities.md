@@ -22,14 +22,17 @@ Regex- or checksum-validated. These typically come back at near-1.0 confidence a
 
 | Entity | Description |
 |---|---|
+| `BIC_CODE` | ISO 9362 Business Identifier Code (SWIFT) — 8 or 11 chars, ISO 3166-1 alpha-2 country slot |
 | `CREDIT_CARD` | Major credit card numbers (Luhn-validated) |
 | `CRYPTO` | Cryptocurrency wallet addresses |
 | `EMAIL_ADDRESS` | Email addresses |
+| `EU_VAT_ID` | EU VAT identification number (any of the 27 EU country prefixes) |
 | `IBAN_CODE` | International bank account numbers |
 | `IP_ADDRESS` | IPv4 / IPv6 addresses |
 | `MAC_ADDRESS` | Hardware MAC addresses |
 | `MEDICAL_LICENSE` | Generic medical license numbers (DEA) |
 | `PHONE_NUMBER` | International / regional phone numbers |
+| `SEPA_CREDITOR_ID` | SEPA Creditor Identifier (EPC scheme) — 8-35 chars, ISO 3166-1 alpha-2 country slot |
 | `URL` | Web URLs |
 
 ## Country-specific
@@ -59,7 +62,9 @@ These recognizers are registered per language code in Presidio. To detect them, 
 | `UK_POSTCODE` | UK postal code |
 | `UK_VEHICLE_REGISTRATION` | UK vehicle registration plate |
 
-### 🇩🇪 Germany (`de`)
+### 🇩🇪 Germany (`de`, also `en`)
+
+German recognizers are registered under both `de` and `en` so cross-border correspondence from English-speaking subsidiaries surfaces the same identifiers as native-German text. Low-base context-gated recognizers (`DE_PLZ`, `DE_KFZ`, `DE_HEALTH_INSURANCE`, `DE_FUEHRERSCHEIN`, `DE_ZAEHLERNUMMER`) only fire when a German CONTEXT keyword sits in the surrounding window; high-base structural recognizers (`DE_VAT_ID`, `DE_TAX_ID`, `DE_MASTR_ID`, `DE_ID_CARD`, `DE_PASSPORT`, `DE_MELO`) fire on shape alone.
 
 | Entity | Description |
 |---|---|
@@ -77,6 +82,10 @@ These recognizers are registered per language code in Presidio. To detect them, 
 | `DE_BSNR` | Betriebsstättennummer (medical practice ID) |
 | `DE_HANDELSREGISTER` | Commercial register number |
 | `DE_MASTR_ID` | Marktstammdatenregister-Nummer (BNetzA energy-market identifier) |
+| `DE_EEG_ANLAGE` | Anlagenschlüssel — 33-char EEG plant identifier (BDEW BK6-13-200) |
+| `DE_MALO` | Marktlokations-ID — 11-digit market-location ID, BDEW Mod-10 checksum-validated to score 1.0 |
+| `DE_MELO` | Messlokations-ID — 33-char DE-prefixed metering-location ID (VDE-AR-N 4400) |
+| `DE_ZAEHLERNUMMER` | Zählernummer — 8-15 alphanumeric meter number, context-required |
 
 ### 🇮🇹 Italy (`it`)
 
@@ -159,7 +168,8 @@ These recognizers are registered per language code in Presidio. To detect them, 
 
 ## Notes
 
-- **Language scoping.** A country-specific recognizer fires only when the request's `language` matches the language the recognizer was registered under, and an NLP model for that language is loaded. Redakt's default `supported_languages` is `["en", "de"]`, so US, UK, and DE recognizers are reachable out of the box; IT, PL, ES and others require loading additional NLP models in the Presidio container.
+- **Language scoping.** A country-specific recognizer fires only when the request's `language` matches the language the recognizer was registered under, and an NLP model for that language is loaded. Redakt's default `supported_languages` is `["en", "de"]`, so US, UK, and DE recognizers are reachable out of the box; IT, PL, ES and others require loading additional NLP models in the Presidio container. German recognizers are dual-registered under `en` to cover cross-border traffic from English-speaking EU subsidiaries.
+- **Overlap is expected.** Several recognizer pairs intentionally fire on the same span: `EU_VAT_ID` + `DE_VAT_ID` on `DE` VAT prefixes; `SEPA_CREDITOR_ID` + `IBAN_CODE` on IBAN-shaped spans ≥ 15 chars (IBAN's checksum validation promotes it to score 1.0 so it wins by score); `DE_MELO` + `DE_EEG_ANLAGE` on DE-prefixed 33-char spans. The anonymization template picks one winner per span; subset-matching in the eval suite tolerates the extras.
 - **spaCy NLP entities have flat ~0.85 confidence.** When Redakt is deployed with the spaCy backend (`presidio/docker-compose-text.yml`), the NLP recognizer assigns a constant ~0.85 score to every `PERSON`, `LOCATION`, `ORGANIZATION`, `NRP`, and `DATE_TIME` it detects. Per-entity score thresholds for these entities are therefore effectively binary: a floor at or below 0.85 keeps every detection; a floor above 0.85 drops them all. The transformers backend (`presidio/docker-compose-transformers.yml`) returns varied confidence and tunes more gradually.
 - **NLP entities are noisier.** `PERSON`, `LOCATION`, `ORGANIZATION`, `NRP`, `DATE_TIME` are model-driven, so they overfire on generic terms (cities, common temporal words). The defaults — `LOCATION: 0.90`, `DATE_TIME: 0.95` — are tuned to disable both on spaCy out of the box, since the original motivating bug ("Munich today" being flagged) was an artifact of that overfiring.
 - **Pattern entities are sharper.** `CREDIT_CARD`, `IBAN_CODE`, the country ID numbers, etc. are regex + checksum, so they typically score very high or don't fire at all.
