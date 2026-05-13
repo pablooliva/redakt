@@ -263,3 +263,71 @@
   language: de
   expect_clean: true
   notes: "REQ-009b long-document anchor. ~200-word German prose paragraph repeated 3x; tokenized length 557 under xlm-roberta-large-finetuned-conll03-german tokenizer (per compaction file proof-of-tokenization). Exercises stride: 16 windowing per EDGE-006 / PERF-001. Generic prose with no PII — expect_clean asserts no spurious entities surface across windows."
+
+# === Memodo pilot integration phrases (cross-border item 6) ===
+# Five multi-PII paragraphs promoted verbatim from tools/memodo_pilot.py
+# (labels 01, 03, 06, 08, 10), each carrying realistic typical-traffic
+# shapes for B2B PV-wholesale: installer onboarding, RMA ticket, site
+# visit with MaStR, customer complaint with callback, multi-address
+# order paperwork. `expect:` sets are the live-API ground truth at the
+# default REDAKT_ENTITY_SCORE_THRESHOLDS, captured against the running
+# analyzer after items 1–5 landed (EU_VAT_ID + SEPA_CREDITOR_ID
+# overlap on DE-prefixed VAT IDs is intentional per item 1/5; subset
+# matching tolerates extras, so the contract here is "these MUST
+# continue to fire", not "only these may fire". The negative anchors
+# below pin the brand/product/SKU/serial-number contract: those spans
+# must remain clean — that's why item 6 was sequenced after 1–5, so
+# the recognizers added there don't accidentally fire on PV vocabulary.
+
+- text: "Sehr geehrte Damen und Herren, hiermit möchte sich die Solarprofi Müller GmbH (USt-IdNr. DE123456789) für ein Kundenkonto bei Memodo bewerben. Geschäftsführer Hans Müller, erreichbar unter +49 89 12345678 oder hans.mueller@solarprofi-mueller.de. Lieferadresse: Solarweg 12, 80331 München."
+  language: de
+  expect: [PERSON, EMAIL_ADDRESS, PHONE_NUMBER, DE_VAT_ID, EU_VAT_ID, SEPA_CREDITOR_ID, LOCATION, DE_PLZ]
+  notes: "Pilot phrase 01 (installer onboarding). DE_VAT_ID + EU_VAT_ID + SEPA_CREDITOR_ID all fire on the DE123456789 substring — intentional per items 1 (generic EU_VAT_ID) and 5 (SEPA CI matches IBAN-shaped DE-prefixed spans). Subset-match gate tolerates the three-way overlap. 'Memodo' (own-brand reference) must not surface — verified clean. 'Hans' fires as PERSON at 1.0 (first name alone is enough under xlm-roberta CoNLL-03 DE); the trailing 'Müller' is absorbed into the company-name span and does not surface as a separate PERSON."
+
+- text: "Reklamation Auftrag #A-2024-87432. Ein Fronius Symo 10.0-3-M Wechselrichter (Seriennummer F1234567) zeigt seit gestern den Fehlercode 'State 1015'. Endkunde Familie Schneider, Anlagenstandort Hauptstraße 47, 86150 Augsburg. Anlagenbetreiber meldet sich unter 0821 4567890 bei Techniker Tobias Weber."
+  language: de
+  expect: [PERSON, LOCATION, DE_PLZ, PHONE_NUMBER]
+  notes: "Pilot phrase 03 (RMA ticket). Brand 'Fronius', model 'Symo 10.0-3-M', serial 'F1234567', and ticket-ID '#A-2024-87432' must all stay clean — pinned by the standalone Fronius negative anchor below. 'Familie Schneider' does not currently surface as PERSON (xlm-roberta is conservative on family-name-only spans); the live PERSON span is 'Tobias Weber' (technician)."
+
+- text: "Aufmaß bei Bauernhof Hubert Maier, Dorfstraße 8, 94032 Passau am 12.05.2026. Geplant: 18 kWp PV-Anlage mit 36x JA Solar JAM72S20-450 Modulen auf der Süd-Dachfläche, gekoppelt mit einem Huawei SUN2000-15KTL-M2 Wechselrichter. Anlagenbetreiber-Kontakt: 0851 666999. MaStR-Nummer SEE901234567890."
+  language: de
+  expect: [DATE_TIME, DE_MASTR_ID, DE_PLZ, LOCATION, PHONE_NUMBER]
+  notes: "Pilot phrase 06 (site visit with MaStR). DE_MASTR_ID matches SEE901234567890 at 1.0; DATE_TIME matches 12.05.2026 at 0.95 (dd.mm.yyyy fork ee93662). PERSON intentionally absent from `expect:` — under xlm-roberta CoNLL-03 DE, the customer name 'Hubert Maier' is absorbed into the 'Bauernhof Hubert' LOCATION span and does not surface as a separate PERSON entity. Brands 'JA Solar' / 'Huawei' and SKUs 'JAM72S20-450' / 'SUN2000-15KTL-M2' must stay clean — pinned by the standalone JA Solar/Huawei negative anchor below."
+
+- text: "Beschwerde von Familie Wagner, Mozartstraße 23, 70197 Stuttgart. Ihre installierte Anlage (System-ID PV-2024-09812) liefert seit der Inbetriebnahme nur 60% der prognostizierten Leistung. Rückrufwunsch heute zwischen 16 und 18 Uhr unter 0711 33445566. Bearbeitung durch Service-Team, zugewiesen an Julia Krause (Memodo)."
+  language: de
+  expect: [PERSON, LOCATION, DE_PLZ, PHONE_NUMBER]
+  notes: "Pilot phrase 08 (customer complaint callback). PERSON fires on 'Julia Krause' (Memodo employee, treated as PII per GDPR policy); 'Familie Wagner' does not surface (xlm-roberta conservative on family-name spans). Internal system-ID 'PV-2024-09812' must stay clean — pinned by the standalone System-ID negative anchor below. DATE_TIME intentionally absent: 'heute zwischen 16 und 18 Uhr' is relative time + time-of-day, neither a DateRecognizer regex shape nor a CoNLL-03 DE label."
+
+- text: "Auftragsbestätigung Bestellung 88123-A. Rechnungsadresse: Sonnenkraft Anlagenbau GmbH & Co. KG, Industriering 4, 27412 Tarmstedt, USt-IdNr. DE987654321. Lieferadresse: Baustelle Familie Petersen, Am Deich 9, 27619 Schiffdorf. Material: 30x Trina Solar Vertex S+ 440W Glasmodule, 1x SMA Sunny Tripower 25000TL-30 Wechselrichter. Versand voraussichtlich 14.05.2026 mit DHL. Bei Rückfragen: Memodo Vertrieb DACH, Christina Lehmann, +49 89 4242000, christina.lehmann@memodo.de."
+  language: de
+  expect: [DATE_TIME, DE_PLZ, DE_VAT_ID, EU_VAT_ID, SEPA_CREDITOR_ID, EMAIL_ADDRESS, LOCATION, PERSON, PHONE_NUMBER]
+  notes: "Pilot phrase 10 (multi-address order). Two DE_PLZ fire (27412 Tarmstedt billing + 27619 Schiffdorf delivery) — the subset gate just checks DE_PLZ ∈ found. Three-way DE_VAT_ID + EU_VAT_ID + SEPA_CREDITOR_ID overlap on DE987654321 same as phrase 01. Brands 'Trina Solar' / 'SMA' / 'DHL' (carrier) must stay clean — pinned by the standalone Trina/SMA negative anchor below."
+
+# Brand/product/SKU/serial negative anchors. Each phrase below is a
+# PV-vocabulary-dense sentence with no PII; subset-matching alone
+# doesn't enforce 'must not fire', so these standalone fixtures with
+# `expect_clean: true` are how the brand-name contract is pinned.
+# Verified clean against the running analyzer container at the time
+# of promotion. If a future recognizer addition starts FP-flagging a
+# brand or SKU, the fixture here is what fails first.
+
+- text: "Fronius Symo 10.0-3-M Wechselrichter Seriennummer F1234567 zeigt Fehlercode State 1015."
+  language: de
+  expect_clean: true
+  notes: "Brand + model + serial-number negative anchor (paired with pilot phrase 03 above). Verifies 'Fronius', 'Symo 10.0-3-M', and serial 'F1234567' stay clean — none of the DE recognizers, EU_VAT_ID, BIC, SEPA CI, or NLP PERSON/ORG/LOC should fire on PV inverter vocabulary."
+
+- text: "JA Solar JAM72S20-450 Module und Huawei SUN2000-15KTL-M2 Wechselrichter."
+  language: de
+  expect_clean: true
+  notes: "Multi-brand + multi-SKU negative anchor (paired with pilot phrase 06 above). Verifies module and inverter brand-names plus their alphanumeric SKU codes stay clean. SUN2000-15KTL-M2 is the highest-risk SKU shape (mix of letters + digits + dashes) for accidental DE_KFZ / DE_FUEHRERSCHEIN / DE_ZAEHLERNUMMER FPs."
+
+- text: "System-ID PV-2024-09812 für die Anlage liegt vor."
+  language: de
+  expect_clean: true
+  notes: "Internal system-ID negative anchor (paired with pilot phrase 08 above). The PV-YYYY-NNNNN shape is a common Memodo-internal identifier; verifies it does not FP-flag as DATE_TIME (the 2024 year fragment could otherwise trigger a year-only pattern), DE_KFZ, or any structural-id recognizer."
+
+- text: "30x Trina Solar Vertex S+ 440W Glasmodule und 1x SMA Sunny Tripower 25000TL-30 Wechselrichter."
+  language: de
+  expect_clean: true
+  notes: "Brand + product-spec negative anchor (paired with pilot phrase 10 above). Verifies 'Trina Solar', 'Vertex S+', '440W', 'SMA', 'Sunny Tripower', and SKU '25000TL-30' all stay clean. The 25000TL-30 shape (5 digits + letters + dash + 2 digits) is the highest-risk SKU here for DE_ZAEHLERNUMMER (which requires ≥1 digit and 8-15 alphanumerics)."
