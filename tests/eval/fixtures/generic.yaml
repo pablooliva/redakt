@@ -207,3 +207,25 @@
   language: en
   expect_clean: true
   notes: "Lowercase-suppression anchor. Both 'chasus33' (lowercase BIC) and 'swift code' (lowercase context) are present, but the inline (?-i:...) flag drop forces uppercase-only matching on the pattern itself — lowercase 'chasus33' fails [A-Z]{4} at positions 1-4. Pins that a future fork-side change which restores IGNORECASE on these patterns would fail CI here. Equivalent in spirit to the lowercase-Rechnung anchor in de.yaml — both lock the inline flag-drop in place."
+
+# === Multi-line address blocks (cross-border item 7) ===
+# Cross-border English correspondence from Memodo's IT/CZ/NL subsidiaries
+# carries multi-line address blocks the same way DE invoices do, but
+# under stanford-deidentifier-base (en NLP). The two fixtures below
+# pin the cross-border shapes that don't have a single-line analogue
+# anywhere else in the fixture set: a header with both subsidiary
+# origin AND DE-HQ destination addresses, and a structured shipping-
+# address + contact-card block where address fields and PII fields
+# alternate across lines. Companion to the three DE multi-line
+# fixtures at the bottom of de.yaml. Live API ground truth at default
+# REDAKT_ENTITY_SCORE_THRESHOLDS, probed against the running analyzer.
+
+- text: "From:\nMemodo Italia S.r.l.\nVia del Sole 42\n20121 Milano\nItaly\n\nTo:\nMemodo GmbH\nHultschiner Straße 8\n81677 München\nGermany"
+  language: en
+  expect: [DE_PLZ]
+  notes: "Cross-border IT→DE invoice header — Italian subsidiary writing to the DE HQ in English. The DE-side PLZ (81677) fires via DE_PLZ at 0.4 (base 0.05 + 'Straße' CONTEXT boost from the preceding line); the IT-side PLZ (20121) stays clean because the recognizer is DE-only by pattern AND no German CONTEXT keyword neighbours it. Anchors the central claim of item 2 (DE_PLZ registered for en under default_recognizers.yaml): a DE address embedded in English text from an EU subsidiary still triggers DE_PLZ. stanford-deidentifier-base may also surface the German street line as a high-score PERSON (street name absorbed into person span — quirk of the medical de-id model) and 'Italy' as NRP; subset matching tolerates extras."
+
+- text: "Shipping address:\nMemodo CZ s.r.o.\nOlbrachtova 2006/9\n14000 Praha 4\nCzech Republic\n\nContact: Jana Novak\nPhone: +420 222 333 444\nEmail: jana.novak@memodo.cz"
+  language: en
+  expect: [PERSON, PHONE_NUMBER, EMAIL_ADDRESS]
+  notes: "Structured shipping address + contact card — Czech subsidiary correspondence. Three-PII contract: PERSON on 'Jana Novak', PHONE_NUMBER on the +420 Czech number, EMAIL on jana.novak@memodo.cz. DE_PLZ intentionally NOT asserted: 14000 is the Czech postal code (no German PLZ-context keyword anywhere in the block), so the bare 5-digit number stays at base 0.05 under DE_PLZ and gets filtered by the 0.35 floor — the cross-border item 2 safety claim. stanford-deidentifier-base may also surface 'Czech' as NRP at 0.85; subset matching tolerates the extra."

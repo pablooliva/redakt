@@ -331,3 +331,33 @@
   language: de
   expect_clean: true
   notes: "Brand + product-spec negative anchor (paired with pilot phrase 10 above). Verifies 'Trina Solar', 'Vertex S+', '440W', 'SMA', 'Sunny Tripower', and SKU '25000TL-30' all stay clean. The 25000TL-30 shape (5 digits + letters + dash + 2 digits) is the highest-risk SKU here for DE_ZAEHLERNUMMER (which requires ≥1 digit and 8-15 alphanumerics)."
+
+# === Multi-line address blocks (cross-border item 7) ===
+# Real Memodo invoices and quotes carry addresses as newline-separated
+# blocks (`<Header:>\n<Company>\n<Street + Nr>\n<PLZ> <City>\n<Country>`),
+# not the single-line shapes that earlier fixtures exercise. The three
+# DE fixtures below pin DE_PLZ context-boost behaviour across newlines
+# (CONTEXT trigger word — Rechnungsadresse / Lieferadresse — sits 3-4
+# lines above the PLZ instead of inline), plus the combined billing +
+# shipping shape and the address-with-inline-contact shape that match
+# how Memodo invoice headers actually look. Live API ground truth at
+# default REDAKT_ENTITY_SCORE_THRESHOLDS, probed against the running
+# analyzer at the time of promotion. Subset-match gate tolerates
+# extras (e.g. additional LOCATION spans on company-name lines that
+# xlm-roberta absorbs into the place span); the contract is "these
+# MUST surface across the multi-line layout".
+
+- text: "Rechnungsadresse:\nSolarprofi Müller GmbH\nSonnenweg 12\n80331 München\nDeutschland"
+  language: de
+  expect: [DE_PLZ, LOCATION]
+  notes: "Canonical 5-line DE billing address block. Anchors that DE_PLZ's CONTEXT boost ('Rechnungsadresse') still applies across 3 intervening newlines + ~40 chars to reach the PLZ. Score lands at 0.4 (base 0.05 + 0.35 context). LOCATION fires on 'München\\nDeutschland' at xlm-roberta saturation. If a future spaCy/transformer model breaks sentence-boundary handling on newlines and the CONTEXT lookup window collapses to single-line, DE_PLZ drops to 0.05 and gets filtered — this fixture will fail first."
+
+- text: "Rechnungsadresse:\nSolarprofi Müller GmbH\nSonnenweg 12\n80331 München\nDeutschland\n\nLieferadresse:\nBaustelle Familie Schmidt\nBergstraße 5\n70197 Stuttgart\nDeutschland"
+  language: de
+  expect: [DE_PLZ, LOCATION]
+  notes: "Combined billing + shipping address — the most common Memodo quote/invoice header shape. Two PLZs fire (80331 Munich billing + 70197 Stuttgart shipping); subset gate just asserts DE_PLZ ∈ found, but the live response surfaces both. The blank line between blocks does NOT break the CONTEXT boost — 'Lieferadresse' anchors the second PLZ the same way 'Rechnungsadresse' anchors the first. Confirms a 2-block layout is structurally equivalent to two independent 1-block layouts."
+
+- text: "Rechnungsadresse:\nSolartechnik Berger GmbH\nMaximilianstraße 14\n80539 München\nDeutschland\nAnsprechpartner: Stefan Berger\nTel.: +49 89 9876543\nE-Mail: s.berger@solartechnik-berger.de"
+  language: de
+  expect: [DE_PLZ, PERSON, PHONE_NUMBER, EMAIL_ADDRESS]
+  notes: "Address block + inline contact card — common quote/order-confirmation footer shape. Four-entity contract: DE_PLZ on the address line, PERSON on 'Stefan Berger', PHONE_NUMBER on '+49 89 9876543', EMAIL on the s.berger@... mail. LOCATION not asserted: when the address block is followed by additional contact lines, xlm-roberta does not surface München as a LOCATION span end-to-end at the 0.9 floor (observed empirically — adding the contact lines flips LOCATION from saturating to sub-floor). Subset matching means the test passes regardless; flagging the divergence here so a future model swap that restores LOCATION can extend `expect:` without surprise."
