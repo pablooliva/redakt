@@ -20,6 +20,8 @@ Captured before implementation to anchor the SDD-flow cycle that will design and
 
 Presidio is span-level by design — each recognizer scores its own pattern/NLP match in isolation. There is no document-level reasoning step that says "this whole text contains no person-naming anchor, therefore the date isn't PII." The architecture is deliberately high-recall: flag everything that looks like an identifier, let downstream policy decide.
 
+**Naming note (2026-05-13):** The German tax-ID entity was originally written as `DE_STEUER_ID` in this ADR. The canonical Redakt/Presidio recognizer name is `DE_TAX_ID` (the name emitted by `de_tax_id_recognizer.py`), confirmed across `tests/eval/fixtures/de.yaml`, `docs/supported-entities.md`, and `docs/customizations.md`. This ADR was amended in-place to use `DE_TAX_ID` throughout, superseding the erroneous `DE_STEUER_ID` form. The `SDD/research/RESEARCH-008-closed-world-filtering.md` "No revisions needed to ADR-0007" claim has been retracted in the research document accordingly.
+
 This produces user-visible noise in Redakt's primary workflow (employees paste a text snippet, receive an anonymized version, paste it into an external AI tool):
 
 - `"What is the weather in Munich, Germany on May 13, 2026?"` flags `LOCATION` and `DATE_TIME` despite having no person-naming anchor. The submission cannot identify a natural person because no identifier-grade signal is present — `Munich` and `May 13, 2026` are joinable quasi-identifiers only against external data the downstream consumer does not have.
@@ -38,7 +40,7 @@ This generalizes beyond DATE_TIME / LOCATION: any future quasi-identifier additi
 Concretely:
 
 1. Classify entity types into two configurable sets:
-   - **Strong anchors** — identify a natural person on their own. Default set: `PERSON`, `EMAIL_ADDRESS`, `PHONE_NUMBER`, `IBAN_CODE`, `DE_VAT_ID`, `DE_STEUER_ID`, `MEDICAL_LICENSE`, plus any other identifier-grade types in the current ruleset. Always emitted regardless of the flag.
+   - **Strong anchors** — identify a natural person on their own. Default set: `PERSON`, `EMAIL_ADDRESS`, `PHONE_NUMBER`, `IBAN_CODE`, `DE_VAT_ID`, `DE_TAX_ID`, `MEDICAL_LICENSE`, plus any other identifier-grade types in the current ruleset. Always emitted regardless of the flag.
    - **Quasi-identifiers** — PII only when joinable with an anchor. Default set: `DATE_TIME`, `LOCATION`, `NRP`, `DE_PLZ`.
 
 2. Add a top-level `config.yaml` flag `closed_world_filtering: false` (off by default). When enabled, after Presidio returns spans, drop every quasi-identifier span unless at least one strong-anchor span is present somewhere in the same submission.

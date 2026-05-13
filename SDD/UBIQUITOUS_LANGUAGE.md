@@ -34,6 +34,26 @@ Instance + per-request `dict[str, float]` map enforced by Redakt's post-filter, 
 - *Synonyms to avoid:* "entity threshold" (the field name is `entity_score_thresholds` but "threshold" is also used for Presidio's global `score_threshold`; "floor" disambiguates), "minimum confidence".
 - *Reference:* `src/redakt/config.py:14`; `src/redakt/utils.py:97-110`; RESEARCH-007 §6.
 
+### strong anchor
+An entity type that identifies a natural person on its own, without requiring combination with any other entity. When at least one strong-anchor span is present in a submission, closed-world filtering retains all quasi-identifier spans. Default set: `PERSON`, `EMAIL_ADDRESS`, `PHONE_NUMBER`, `IBAN_CODE`, `DE_VAT_ID`, `DE_TAX_ID`, `MEDICAL_LICENSE`, `DE_ID_CARD`, `DE_PASSPORT`, `DE_KFZ`, `DE_HEALTH_INSURANCE`, `DE_MASTR_ID`, `EU_VAT_ID`, `BIC_CODE`, `SEPA_CREDITOR_ID`. Configurable via `strong_anchors:` in `config.yaml`.
+- *Synonyms to avoid:* "anchor entity" (imprecise — anchors are entity types, not individual span instances), "identifier entity" (collides with Presidio's broader use of the word).
+- *Reference:* `SDD/research/RESEARCH-008-closed-world-filtering.md` §Configuration Schema Design; `SDD/adr/0007-closed-world-filtering-quasi-identifiers.md` §Decision.
+
+### quasi-identifier
+An entity type that constitutes PII only when joinable with a strong anchor — in isolation it does not identify a natural person. Under closed-world filtering, quasi-identifier spans are suppressed when no strong-anchor span is present in the same submission. Default set: `DATE_TIME`, `LOCATION`, `NRP`, `DE_PLZ`. Configurable via `quasi_identifiers:` in `config.yaml`.
+- *Synonyms to avoid:* "indirect identifier" (used in k-anonymity literature but not in this codebase), "weak identifier" (vague about the conditional nature).
+- *Reference:* `SDD/research/RESEARCH-008-closed-world-filtering.md` §Configuration Schema Design; `SDD/adr/0007-closed-world-filtering-quasi-identifiers.md` §Decision; privacy literature on k-anonymity / quasi-identifier joining attacks.
+
+### closed-world assumption
+The threat-model premise that the text submission is the entirety of what the downstream consumer sees — no external data is available to join quasi-identifiers against. When this holds, quasi-identifiers without a strong anchor cannot re-identify a natural person. When it fails (agent workflows with external context, chunked document processing, LLM parametric knowledge), the closed-world filtering relaxation is unsafe. Must be documented in `config.yaml` alongside the `closed_world_filtering` flag.
+- *Synonyms to avoid:* "isolation assumption" (non-standard), "no-external-context assumption" (verbose).
+- *Reference:* `SDD/adr/0007-closed-world-filtering-quasi-identifiers.md` §Context; RESEARCH-008 §Security & Threat-Model Considerations.
+
+### closed-world filtering
+The Redakt post-filter policy that suppresses quasi-identifier spans when no strong-anchor span is present in the same submission. Off by default (`closed_world_filtering: false` in `config.yaml`); opt-in per instance and overridable per request. Operates after `filter_by_entity_thresholds()` in both `run_detection()` (`detect.py:119`) and `run_anonymization()` (`anonymize.py:116`). Composed with, not replacing, the allow-list filter and per-entity score floors.
+- *Synonyms to avoid:* "anchor filtering" (describes mechanism, not the threat-model concept), "quasi-identifier suppression" (partial — suppression only occurs in the anchor-absent case).
+- *Reference:* `SDD/research/RESEARCH-008-closed-world-filtering.md` §System Data Flow; `SDD/adr/0007-closed-world-filtering-quasi-identifiers.md` §Decision.
+
 ### graded scores
 Transformer NER scores that vary continuously per detection (typically 0.4–1.0), in contrast to spaCy's flat 0.85 default. The shift to graded scores motivates re-tuning per-entity floors and `low_confidence_score_multiplier` values that were calibrated against the constant.
 - *Synonyms to avoid:* "continuous scores", "real scores" (judgemental).
@@ -67,6 +87,16 @@ The HF Hub commit SHA recorded in `multi.yaml`'s `de` row under `revision:` (cur
 ---
 
 ## Actions (operations / verbs)
+
+### post-filter
+Redakt-side processing applied to Presidio's span results after the analyzer returns, before the response is built. The current post-filter chain is: allow-list filter (inside Presidio's `/analyze` call), `filter_by_entity_thresholds()`, and (when enabled) `filter_by_closed_world()`. New document-level policy rules that cannot be expressed inside a span-scoped Presidio recognizer belong in this layer.
+- *Synonyms to avoid:* "output filter" (vague about placement), "Presidio filter" (the post-filter is entirely Redakt-side; Presidio is upstream of it).
+- *Reference:* `src/redakt/routers/detect.py:116-120`; `src/redakt/routers/anonymize.py:113-117`; `SDD/adr/0007-closed-world-filtering-quasi-identifiers.md` §Decision item 4.
+
+### per-request override
+A request-body field that overrides the instance-wide `config.yaml` value for the duration of a single request. Pattern established by `entity_score_thresholds: dict[str, float] | None = None` in `DetectRequest` and `AnonymizeRequest`; `closed_world_filtering: bool | None = None` is its boolean sibling. `None` means "use the instance default"; a non-None value takes precedence. Resolution logic in the router: `effective = request_value if request_value is not None else settings_value`.
+- *Synonyms to avoid:* "request-level flag" (implies only booleans; the pattern covers maps too), "override param" (too generic).
+- *Reference:* `src/redakt/models/detect.py:10`; `src/redakt/models/anonymize.py:10`; RESEARCH-008 §Configuration Schema Design (Per-request override sub-section).
 
 ### asymmetric routing
 Per-language NLP engine selection: spaCy `en_core_web_lg` for English, transformer (`xlm-roberta-large-finetuned-conll03-german` per RESEARCH-007 §4.2) for German. Coexists in a single analyzer container via a custom `MultiNlpEngine` (RESEARCH-007 §3.3 Option C, recommended).

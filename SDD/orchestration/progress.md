@@ -915,3 +915,86 @@ After SDD-007 closed, Pablo decided the LangSmith regression eval scaffolding do
 
 The user invoked the flow with `--skip-clarify`. Per the sdd-flow skill's Step 1.5, the pre-research clarification gate is suppressed. The Step 2c critical-review's executive summary will record this gate-skip for downstream visibility. The task description embeds full acceptance examples, out-of-scope items, and explicit trade-offs (closed-world-as-threat-model, gameability, HIPAA-incompatibility, DE_PLZ classification call) — the design concept is already crisply externalized in the request itself.
 
+
+### Step 2a — Research subagent run (2026-05-13)
+
+**Phase:** Research (Feature 008 — closed-world filtering for quasi-identifiers)
+**Status:** Complete
+**Artifact:** `SDD/research/RESEARCH-008-closed-world-filtering.md`
+
+**Key findings:**
+
+1. **Filter insertion point confirmed** — `detect.py:119` and `anonymize.py:116`, immediately after `filter_by_entity_thresholds()`. Web UI routes (`pages.py:53`, `pages.py:123`) call the same `run_detection` / `run_anonymization` functions, so the new post-filter covers all four call sites automatically.
+
+2. **Per-request override pattern confirmed** — `entity_score_thresholds: dict[str, float] | None = None` in both `DetectRequest` (`models/detect.py:10`) and `AnonymizeRequest` (`models/anonymize.py:10`). The new `closed_world_filtering: bool | None = None` field follows this exact pattern.
+
+3. **Entity type name discrepancy** — ADR-0007 uses `DE_STEUER_ID` but fixtures and `supported-entities.md` use `DE_TAX_ID`. The spec must canonicalize on `DE_TAX_ID`.
+
+4. **Strong-anchor set extended** — Beyond the ADR-0007 default set, the current ruleset includes `DE_ID_CARD`, `DE_PASSPORT`, `DE_KFZ`, `DE_HEALTH_INSURANCE`, `DE_MASTR_ID`, `EU_VAT_ID`, `BIC_CODE`, `SEPA_CREDITOR_ID`. `DE_KFZ` is borderline (vehicle not person); spec must classify.
+
+5. **Allow-list edge case** — If an anchor entity's text is allow-listed, Presidio suppresses the anchor span before the closed-world filter sees results. The filter correctly treats the anchor as absent (operator's explicit policy). No special handling needed; must be documented.
+
+6. **Eval fixture loader gap** — Existing `test_calibration.py` has no per-fixture boolean flag mechanism. Spec must resolve: extend loader with `closed_world_filtering` key, or use a separate test file. Recommendation in research: per-fixture key as per-request override to `/api/detect`.
+
+7. **ADR-0007 confirmed authoritative** — No revisions needed; codebase layer placement and override pattern match ADR-0007 decisions exactly.
+
+**Open questions for spec (7 items):** listed in RESEARCH-008 §"Open Questions for Planning".
+
+**Safety-net status:** 9 reads / 0 nested subagents (under budget).
+
+## Step 2a-2: Research Completion + Glossary
+
+Research checklist verified. Gaps addressed: one — AuthZ/AuthN section added to RESEARCH-008 Security block (one paragraph: inherited from Redakt endpoint security, no new authZ surface, per-request override is a trusted caller parameter). All other checklist items were already satisfied by Step 2a. Glossary updates (6 terms added to `SDD/UBIQUITOUS_LANGUAGE.md`):
+- **strong anchor** (Entities section) — entity type that identifies a natural person on its own; default set enumerated.
+- **quasi-identifier** (Entities section) — entity type that is PII only when joinable with an anchor; default set enumerated.
+- **closed-world assumption** (Entities section) — threat-model premise; when-it-holds / when-it-fails documented.
+- **closed-world filtering** (Entities section) — the feature post-filter; placement and composition noted.
+- **post-filter** (Actions section) — Redakt-side processing chain after Presidio returns; placement references added.
+- **per-request override** (Actions section) — general pattern (bool | None and dict | None siblings); resolution logic noted.
+
+Ready for Step 2b (ADR capture from research) — ADR-0007 already exists and confirmed authoritative; Step 2b may be a no-op or a status confirmation only.
+
+## Step 2b: ADR Capture from Research
+
+Scanned RESEARCH-008-closed-world-filtering for cross-cutting decisions (comparison-with-selection patterns with cross-system binding scope). Existing ADR-0007 covers all primary decisions surfaced by the research.
+
+New ADRs captured: **none — ADR-0007 already covers all cross-cutting decisions surfaced by the research.**
+
+Decision worksheet summary:
+- Closed-world threat model (off-by-default opt-in): in ADR-0007 §Decision item 2 — decline.
+- DE_PLZ as quasi-identifier: in ADR-0007 §Consequences — decline.
+- Strong-anchor / quasi-id taxonomy + future-entity classification convention: in ADR-0007 §Decision item 1 and §Neutral observations — decline.
+- Per-request override for boolean flags: implementation pattern, not a new architectural decision; ADR-0007 item 3 + entity_score_thresholds precedent already cover it — decline (feature-scoped).
+- DE_KFZ borderline classification: research defers to spec as Open Question #3; no selection made in research — decline (spec decision, not ADR material).
+- Allow-list ordering before closed-world: single-feature implementation detail — decline.
+- DE_STEUER_ID → DE_TAX_ID name correction: name fix, not a new cross-cutting architectural decision — decline.
+- NRP as quasi-identifier: research confirms task description but defers to spec as Open Question #5; no new selection — decline.
+- Presidio-recognizer / Redakt-policy-layer principle: fully in ADR-0007 §Decision cross-cutting principle — decline.
+
+No files written beyond this progress note.
+
+## Step 2c: Research Critical Review
+
+Adversarial review of RESEARCH-008 complete. Verdict: REVISE BEFORE PROCEEDING. Findings: [HIGH=3 MEDIUM=5 LOW=3]. Design Concept Fidelity gate: skipped per --skip-clarify (noted in review's executive summary). Review document: SDD/reviews/CRITICAL-RESEARCH-closed-world-filtering-20260513.md.
+
+## Step 2d: Address Research Findings
+
+All 11 findings from the Step 2c critical review resolved. Artifacts updated:
+
+**RESEARCH-008-closed-world-filtering.md** — updated with:
+- Finding 1 (HIGH): Fifth call site (`/api/documents/upload` → `document_processor.py:182`) added to §System Data Flow with full three-option decision framework; v1 out-of-scope rationale; updated §Integration point table, §Files That Matter, §Existing ADR item 5, §Open Questions Q1.
+- Finding 2 (HIGH): Complete entity classification table added to §Configuration Schema Design. All 18 DE_* types classified. Four omitted strong anchors added: `DE_SOCIAL_SECURITY`, `DE_FUEHRERSCHEIN`, `DE_LANR`, `DE_TAX_NUMBER`. Six always-emit asset identifiers enumerated. `strong_anchors` Python + YAML blocks updated to full list.
+- Finding 3 (HIGH): "No revisions needed to ADR-0007" claim retracted; replaced with "ADR-0007 amended in-place (2026-05-13): DE_STEUER_ID → DE_TAX_ID."
+- Finding 4 (MEDIUM): Per-request override scope for entity-class lists now explicit open question (Q2) with two options; Option (a) v1-boolean-only recommended.
+- Finding 5 (MEDIUM): Audit logging interaction with SPEC-006 now explicit open question (Q3) with two options; `closed_world_suppressed_count` recommended.
+- Finding 6 (MEDIUM): Eval-loader extension committed as two-option open question (Q4) with recommended `request_overrides` generic field approach and diff sketch.
+- Finding 7 (MEDIUM): Web UI override asymmetry documented as explicit open question (Q5); API-only per-request override stated as v1 default.
+- Finding 8 (MEDIUM): GDPR Art. 9 note on NRP added to §Security & Threat-Model Considerations; NRP flagged for spec review-panel confirmation.
+- Finding 9 (LOW): Performance bound O(n) documented in §Testing Strategy.
+- Finding 10 (LOW): Structural edge cases lifted to §Production Edge Cases as behavior contracts; also in test table.
+- Finding 11 (LOW): MEDICAL_LICENSE disposition stated in entity classification table and §Open Questions Q8.
+- Finding 12 (LOW): Vocabulary drift fixed at §Allow-list interaction edge case ("anchor entity" → "a strong-anchor span").
+
+**ADR-0007** — amended in-place: `DE_STEUER_ID` → `DE_TAX_ID` in §Decision item 1; naming note added to §Context.
+
+**CRITICAL-RESEARCH-closed-world-filtering-20260513.md** — "## Findings Addressed" section appended with per-finding resolution summary and specific line/section references.
