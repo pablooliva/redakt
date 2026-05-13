@@ -175,3 +175,4 @@ German recognizers are registered under both `de` and `en` so cross-border corre
 - **Pattern entities are sharper.** `CREDIT_CARD`, `IBAN_CODE`, the country ID numbers, etc. are regex + checksum, so they typically score very high or don't fire at all.
 - **Custom entities.** Presidio supports user-defined recognizers, which can introduce arbitrary additional entity names. Anything you register is detectable.
 - **Optional third-party recognizers** (Azure AI Language, Hugging Face NER, GLiNER) live under `presidio/presidio-analyzer/presidio_analyzer/predefined_recognizers/third_party/` and are not enabled by default in Redakt's compose stack.
+- **Why and chronology.** For the rationale, score arithmetic, intentional overlaps, and ship-order behind any entity in this table that was introduced or materially modified by Redakt, see [`docs/customizations.md`](./customizations.md).
