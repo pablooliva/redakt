@@ -342,8 +342,8 @@
 
 - text: "Section 4.5.6.7 of the spec covers retry semantics."
   language: en
-  expect: [IP_ADDRESS]
-  notes: "KNOWN_FP — should be expect_clean. Four dot-separated small integers pass IP_ADDRESS octet validation at base 0.60. Real IPs (e.g. `Server at 192.168.1.42`) also land at 0.60 with no context boost, so floor tuning cannot separate them. Resolution requires recognizer-level change (e.g. context-word gating, anchor on whitespace boundaries to require non-prose framing)."
+  expect_clean: true
+  notes: "Document-structure reference, not an IP. Resolved by the IpRecognizer negative-context filter (presidio fork): when the immediately-preceding token is in NEGATIVE_CONTEXT_PRECEDING (section, article, chapter, paragraph, part, clause, rule, item, §, and their abbreviated forms), the pattern match is dropped. Real IP mentions ('Server at 1.2.3.4', 'ping 1.2.3.4', 'gateway 10.0.0.1') do not follow these tokens and stay clean. Inverse of the EU_VAT_ID/SEPA gate pattern: IP recognizer's CONTEXT list ('ip', 'ipv4', 'ipv6') is too weak for real prose to carry, so a positive gate would destroy recall — instead, a NEGATIVE filter on document-structure prefixes."
 
 - text: "Inventory tag EE9012345 was logged at the warehouse."
   language: en
