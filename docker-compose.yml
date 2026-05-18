@@ -37,6 +37,14 @@ services:
       dockerfile: Dockerfile.multi
       args:
         - NLP_CONF_FILE=presidio_analyzer/conf/multi.yaml
+    # Published only for local dev/calibration: tools/calibration_report.py
+    # --raw hits the analyzer directly with score_threshold=0 to show
+    # pre-filter Presidio scores. CLAUDE.md documents this port as
+    # http://localhost:5002. Production uses docker-compose.prod.yml,
+    # which does NOT publish this port — keeping the analyzer internal
+    # in production per the "only Redakt API talks to Presidio" rule.
+    ports:
+      - "5002:5001"
     environment:
       - PORT=5001
     healthcheck:
