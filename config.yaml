@@ -47,6 +47,23 @@ entity_score_thresholds:
   # at score 0.85 still fires correctly on those spans).
   DE_FUEHRERSCHEIN: 0.5
 
+  # MEDICAL_LICENSE disabled: US DEA-scoped recognizer with a permissive
+  # [A-Z]{2}\d{7} pattern that produces high-confidence FPs on any
+  # 9-char letter+digit token (e.g. inventory tags 'EE9012345' and the
+  # DE_MASTR_ID substring 'EE9012345' inside 'SEE901234567890'). Memodo
+  # has no DEA use case — disabling matches the future-direction note
+  # in earlier revisions of this file and the en-only scoping in
+  # default_recognizers.yaml. Re-enable by lowering this floor only if
+  # the deployment context actually needs US DEA detection.
+  MEDICAL_LICENSE: 1.01
+
+  # MAC_ADDRESS base score is 0.6 without context and 0.95 with
+  # ("MAC address" / "ethernet" / "hardware address" in CONTEXT). Pure
+  # build-pipeline / config-key shapes like 'AB:CD:EF:01:02:03' land
+  # at the base 0.6 and previously surfaced as PII. The 0.65 floor
+  # drops bare-shape collisions while still passing real MAC mentions.
+  MAC_ADDRESS: 0.65
+
 # --- Language ---
 default_language: auto
 supported_languages: [en, de]

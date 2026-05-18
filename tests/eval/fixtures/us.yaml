@@ -29,3 +29,39 @@
 - text: "Medicare ID 1EG4-TE5-MK72."
   language: en
   expect: [US_MBI]
+
+# === Negative anchors — common US prose that must not over-fire ===
+# Pins that US-flavored conversational text stays clean at default
+# thresholds. Mirrors benign.yaml's role for general English and the
+# de.yaml bare-noun block for German. If any of these regress to a
+# detection, an entity floor or recognizer probably needs tuning.
+
+- text: "I love New York pizza."
+  language: en
+  expect_clean: true
+  notes: "Bare US city in casual prose. LOCATION 0.90 floor must hold."
+
+- text: "Filing taxes in California next April."
+  language: en
+  expect_clean: true
+  notes: "US state + relative date. DATE_TIME 0.95 floor must filter 'next April'; LOCATION 0.90 floor must filter 'California'."
+
+- text: "What's the best way to renew a passport?"
+  language: en
+  expect_clean: true
+  notes: "Bare 'passport' noun without any number — must not surface US_PASSPORT or any DE_PASSPORT lookalike."
+
+- text: "Apply for a driver's license at the DMV."
+  language: en
+  expect_clean: true
+  notes: "Bare 'driver's license' phrase. No identifier present → must stay clean."
+
+- text: "Order shipped from Texas warehouse on Monday."
+  language: en
+  expect_clean: true
+  notes: "US state + weekday. Both LOCATION and DATE_TIME floors must hold; common e-commerce phrasing."
+
+- text: "Tracking number 1Z999AA10123456784 from UPS."
+  language: en
+  expect_clean: true
+  notes: "UPS tracking number — alphanumeric ID that is NOT PII under our rules. Pins that no recognizer (US_BANK_NUMBER digit-only, US_DRIVER_LICENSE, etc.) over-claims this span."

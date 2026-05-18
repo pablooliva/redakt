@@ -21,3 +21,45 @@
   language: en
   expect: [UK_PASSPORT]
   notes: "Presidio's UK_PASSPORT regex is [A-Z]{2}\\d{7} — real UK passports are 9 digits, but the recognizer expects this shape."
+
+# === Negative anchors — common UK prose that must not over-fire ===
+# Companion to the us.yaml negative block. Pins that UK-flavored casual
+# text stays clean at default thresholds, with particular attention to
+# entity types whose shape is permissive (UK_NINO, UK_VEHICLE_REGISTRATION,
+# UK_PASSPORT all use 2-letter + digits, which routinely collides with
+# project codes / build IDs).
+
+- text: "What's the weather in London tomorrow?"
+  language: en
+  expect_clean: true
+  notes: "UK city + relative date. Direct UK analog of the Munich/Tokyo benign cases."
+
+- text: "I'd like to visit Manchester next month."
+  language: en
+  expect_clean: true
+  notes: "UK city + relative future. LOCATION 0.90 and DATE_TIME 0.95 floors must hold."
+
+- text: "Hire car at Heathrow on Friday afternoon."
+  language: en
+  expect_clean: true
+  notes: "UK landmark (airport) + weekday. Avoids the postcode/registration patterns intentionally."
+
+- text: "Section AB-12 in the manual covers this case."
+  language: en
+  expect_clean: true
+  notes: "UK_VEHICLE_REGISTRATION lookalike. 'AB-12' has the 2-letter+2-digit prefix shape but the dash and missing 3-letter suffix should keep it clean. Plate context word absent."
+
+- text: "Project code XX-99 will ship in Q3."
+  language: en
+  expect_clean: true
+  notes: "Generic project ID using a 2-letter+2-digit shape that approaches NINO/UK_VEHICLE_REGISTRATION territory. Pins that bare alphanumerics with no PII context do not surface as identifiers."
+
+- text: "Visit the NHS website for vaccination guidance."
+  language: en
+  expect_clean: true
+  notes: "Bare 'NHS' acronym without any number — must not surface UK_NHS. Pins that the NHS recognizer requires the numeric pattern, not just the keyword."
+
+- text: "The British Museum has reopened after the renovation."
+  language: en
+  expect_clean: true
+  notes: "Adjectival nationality ('British') + UK landmark. NRP/LOCATION must both stay below their floors."

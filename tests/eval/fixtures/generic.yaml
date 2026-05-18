@@ -88,10 +88,10 @@
   expect: [EU_VAT_ID]
   notes: "PL prefix on German text — neighbor country that DeVatIdRecognizer never handled."
 
-- text: "Unsere niederländische Niederlassung nutzt NL123456789B01."
+- text: "USt-IdNr. unserer niederländischen Niederlassung: NL123456789B01."
   language: de
   expect: [EU_VAT_ID]
-  notes: "Dutch VAT on German text — multi-subsidiary parent-company shape."
+  notes: "Dutch VAT on German text — multi-subsidiary parent-company shape. EuVatIdRecognizer treats CONTEXT as REQUIRED, not boosting; 'USt-IdNr.' satisfies the gate. The earlier phrasing ('Unsere niederländische Niederlassung nutzt NL123456789B01.') contained no VAT keyword and is now intentionally suppressed — operators relying on that pattern should add the VAT-keyword (or USt-IdNr/MwSt/VAT/IVA/etc.) to the text or use a country-specific recognizer."
 
 - text: "Cross-border invoice for DE123456789 from our UK branch."
   language: en
@@ -229,3 +229,123 @@
   language: en
   expect: [PERSON, PHONE_NUMBER, EMAIL_ADDRESS]
   notes: "Structured shipping address + contact card — Czech subsidiary correspondence. Three-PII contract: PERSON on 'Jana Novak', PHONE_NUMBER on the +420 Czech number, EMAIL on jana.novak@memodo.cz. DE_PLZ intentionally NOT asserted: 14000 is the Czech postal code (no German PLZ-context keyword anywhere in the block), so the bare 5-digit number stays at base 0.05 under DE_PLZ and gets filtered by the 0.35 floor — the cross-border item 2 safety claim. stanford-deidentifier-base may also surface 'Czech' as NRP at 0.85; subset matching tolerates the extra."
+
+# === English bare-noun / common-prose negative anchors ===
+# English analogue of the de.yaml RESEARCH-007 §7.4 bare-noun block.
+# Under stanford-deidentifier-base these bare common nouns must produce
+# zero entities — they're the substrate of every real prompt that
+# discusses PII concepts without supplying actual PII. If a future model
+# swap or recognizer change starts flagging any of these, ADD the
+# regression to this block BEFORE landing the change. Companion to the
+# us.yaml / uk.yaml negative blocks and the existing generic.yaml DE_PLZ
+# / DE_KFZ negatives.
+
+- text: "passport"
+  language: en
+  expect_clean: true
+  notes: "Bare common noun. Must not surface US_PASSPORT, UK_PASSPORT, or DE_PASSPORT."
+
+- text: "driver's license"
+  language: en
+  expect_clean: true
+  notes: "Bare common noun. Must not surface US_DRIVER_LICENSE or DE_FUEHRERSCHEIN."
+
+- text: "social security number"
+  language: en
+  expect_clean: true
+  notes: "Bare common noun. Must not surface US_SSN or DE_SOCIAL_SECURITY just from the keyword."
+
+- text: "tax identification number"
+  language: en
+  expect_clean: true
+  notes: "Bare common noun. DE_TAX_ID / DE_TAX_NUMBER context words present in spirit but no actual identifier — must stay clean."
+
+- text: "credit card"
+  language: en
+  expect_clean: true
+  notes: "Bare common noun. CREDIT_CARD recognizer needs a Luhn-valid 13-19 digit span — the bare phrase alone must not fire."
+
+- text: "phone number"
+  language: en
+  expect_clean: true
+  notes: "Bare common noun. PHONE_NUMBER needs a digit pattern — pure keyword must stay clean."
+
+- text: "email address"
+  language: en
+  expect_clean: true
+  notes: "Bare common noun. EMAIL_ADDRESS needs an @ pattern — pure keyword must stay clean."
+
+- text: "bank account"
+  language: en
+  expect_clean: true
+  notes: "Bare common noun. IBAN_CODE / US_BANK_NUMBER / ABA_ROUTING_NUMBER all need numeric patterns — pure keyword must stay clean."
+
+- text: "How does GDPR affect us in the cloud?"
+  language: en
+  expect_clean: true
+  notes: "Regulatory acronym in conversational prose — pins that 'GDPR' and 'cloud' (potential noun-class FP under medical de-id NER) stay below all floors."
+
+- text: "Schedule a meeting with the team for next quarter."
+  language: en
+  expect_clean: true
+  notes: "Common workplace prose with 'next quarter' relative-time. DATE_TIME 0.95 floor must filter — pinning that quarterly references stay clean alongside the explicit Q[1-4] YYYY patterns above."
+
+# === Code / technical-text negative anchors (item 3) ===
+# Real prompts routinely include code, paths, hashes, and version strings.
+# These shapes collide with several recognizers (IP_ADDRESS, MAC_ADDRESS,
+# CREDIT_CARD, URL, EU_VAT_ID) at the byte level. The fixtures below pin
+# that technical syntax stays clean at default thresholds.
+
+- text: "Stack trace: at module.handler.process (handler.py:42:18)"
+  language: en
+  expect_clean: true
+  notes: "Python stack trace fragment. Dotted-path tokens must not fire URL; file:line:col positions must not fire any numeric recognizer."
+
+- text: "Bumped dependency from v1.2.3 to v1.2.4 in package.json."
+  language: en
+  expect_clean: true
+  notes: "Semver version strings. Three-segment dot-separated digits could shape-collide with IP-fragment heuristics; pins they stay clean."
+
+- text: "Commit abc1234ef56 broke the nightly job."
+  language: en
+  expect_clean: true
+  notes: "Git short-hash. Hex digits + alphanumerics, no Luhn-valid digit span, no context word — must not surface CREDIT_CARD / CRYPTO / any ID recognizer."
+
+- text: "See example.com or localhost:8000 for the demo endpoint."
+  language: en
+  expect_clean: true
+  notes: "Bare example.com and localhost references. URL recognizer base score 0.50 + URL 0.55 floor: bare domains without scheme must stay below the floor. Pins that documentation-style examples don't redact away."
+
+- text: "Config key AB:CD:EF:01:02:03 in the build pipeline."
+  language: en
+  expect_clean: true
+  notes: "MAC_ADDRESS bare-shape FP guardrail. Base score 0.6 without context; the MAC_ADDRESS: 0.65 floor in config.yaml drops this to clean while real 'MAC address 00:1A:...' detections stay at the context-boosted 0.95. Regression test for the floor — if MAC_ADDRESS floor is ever lowered below 0.65, this fixture fails."
+
+# === Characterization tests for known-FP surfaces ===
+# These fixtures pin the CURRENT (over-firing) behavior at default
+# thresholds. They are NOT `expect_clean: true` because no floor-only
+# tuning can close the gap — the real positives and FPs land at the
+# same recognizer base score, so resolution requires recognizer-level
+# changes (more conservative pattern, stricter context gating, or
+# boundary-character requirements). Documenting them here:
+#  (a) records the gap in code, not just notes;
+#  (b) gives a CI signal the day someone narrows the recognizer
+#      (the fixture will start producing `[]` and fail this expect:);
+#  (c) flagging that day as "flip this back to expect_clean: true".
+# See SDD/research and reports/after-fp-expansion.md for the FP audit
+# that surfaced these.
+
+- text: "Project CZ12345678 was archived last sprint."
+  language: en
+  expect: [SEPA_CREDITOR_ID]
+  notes: "KNOWN_FP — should be expect_clean. EU_VAT_ID side resolved by the context-required gate in EuVatIdRecognizer (presidio fork): no VAT/USt/MwSt/invoice keyword in the text → EU_VAT_ID is dropped. Residual FP is SEPA_CREDITOR_ID at 0.85 base — the recognizer matches the country-code-prefix shape too permissively. SEPA_CREDITOR_ID base is widely tolerated across existing fixtures (subset-match) so raising the floor would regress legitimate co-occurrences. Resolution requires recognizer-level change (minimum 13+ char Creditor Identifier length OR mandatory Creditor/Gläubiger/Identifier context). Same gate pattern as EU_VAT_ID would work here."
+
+- text: "Section 4.5.6.7 of the spec covers retry semantics."
+  language: en
+  expect: [IP_ADDRESS]
+  notes: "KNOWN_FP — should be expect_clean. Four dot-separated small integers pass IP_ADDRESS octet validation at base 0.60. Real IPs (e.g. `Server at 192.168.1.42`) also land at 0.60 with no context boost, so floor tuning cannot separate them. Resolution requires recognizer-level change (e.g. context-word gating, anchor on whitespace boundaries to require non-prose framing)."
+
+- text: "Inventory tag EE9012345 was logged at the warehouse."
+  language: en
+  expect: [SEPA_CREDITOR_ID]
+  notes: "KNOWN_FP — should be expect_clean. With MEDICAL_LICENSE disabled (floor 1.01 in config.yaml) the original 1.00 MEDICAL_LICENSE FP is gone. The residual FP is SEPA_CREDITOR_ID at 0.85 base — the recognizer matches the country-code-prefix shape too permissively. SEPA_CREDITOR_ID base is widely tolerated across existing fixtures (subset-match) so raising the floor would regress legitimate co-occurrences. Resolution requires recognizer-level change (require minimum 13+ char Creditor Identifier length OR mandatory Creditor/Gläubiger/Identifier context)."
