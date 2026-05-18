@@ -281,8 +281,8 @@
 
 - text: "Sehr geehrte Damen und Herren, hiermit möchte sich die Solarprofi Müller GmbH (USt-IdNr. DE123456789) für ein Kundenkonto bei Memodo bewerben. Geschäftsführer Hans Müller, erreichbar unter +49 89 12345678 oder hans.mueller@solarprofi-mueller.de. Lieferadresse: Solarweg 12, 80331 München."
   language: de
-  expect: [PERSON, EMAIL_ADDRESS, PHONE_NUMBER, DE_VAT_ID, EU_VAT_ID, SEPA_CREDITOR_ID, LOCATION, DE_PLZ]
-  notes: "Pilot phrase 01 (installer onboarding). DE_VAT_ID + EU_VAT_ID + SEPA_CREDITOR_ID all fire on the DE123456789 substring — intentional per items 1 (generic EU_VAT_ID) and 5 (SEPA CI matches IBAN-shaped DE-prefixed spans). Subset-match gate tolerates the three-way overlap. 'Memodo' (own-brand reference) must not surface — verified clean. 'Hans' fires as PERSON at 1.0 (first name alone is enough under xlm-roberta CoNLL-03 DE); the trailing 'Müller' is absorbed into the company-name span and does not surface as a separate PERSON."
+  expect: [PERSON, EMAIL_ADDRESS, PHONE_NUMBER, DE_VAT_ID, EU_VAT_ID, LOCATION, DE_PLZ]
+  notes: "Pilot phrase 01 (installer onboarding). DE_VAT_ID + EU_VAT_ID fire on the DE123456789 substring — intentional per item 1 (generic EU_VAT_ID, context-required gate satisfied by 'USt-IdNr.'). SEPA_CREDITOR_ID previously surfaced as a subset-tolerated side-effect on the same span; the SepaCreditorIdRecognizer context-required gate now drops it because this onboarding letter contains no SEPA/Creditor/Gläubiger/Lastschrift/Mandat keyword — the correct behavior (this is a B2B onboarding letter, not a SEPA mandate). 'Memodo' (own-brand reference) must not surface — verified clean. 'Hans' fires as PERSON at 1.0 (first name alone is enough under xlm-roberta CoNLL-03 DE); the trailing 'Müller' is absorbed into the company-name span and does not surface as a separate PERSON."
 
 - text: "Reklamation Auftrag #A-2024-87432. Ein Fronius Symo 10.0-3-M Wechselrichter (Seriennummer F1234567) zeigt seit gestern den Fehlercode 'State 1015'. Endkunde Familie Schneider, Anlagenstandort Hauptstraße 47, 86150 Augsburg. Anlagenbetreiber meldet sich unter 0821 4567890 bei Techniker Tobias Weber."
   language: de
@@ -301,8 +301,8 @@
 
 - text: "Auftragsbestätigung Bestellung 88123-A. Rechnungsadresse: Sonnenkraft Anlagenbau GmbH & Co. KG, Industriering 4, 27412 Tarmstedt, USt-IdNr. DE987654321. Lieferadresse: Baustelle Familie Petersen, Am Deich 9, 27619 Schiffdorf. Material: 30x Trina Solar Vertex S+ 440W Glasmodule, 1x SMA Sunny Tripower 25000TL-30 Wechselrichter. Versand voraussichtlich 14.05.2026 mit DHL. Bei Rückfragen: Memodo Vertrieb DACH, Christina Lehmann, +49 89 4242000, christina.lehmann@memodo.de."
   language: de
-  expect: [DATE_TIME, DE_PLZ, DE_VAT_ID, EU_VAT_ID, SEPA_CREDITOR_ID, EMAIL_ADDRESS, LOCATION, PERSON, PHONE_NUMBER]
-  notes: "Pilot phrase 10 (multi-address order). Two DE_PLZ fire (27412 Tarmstedt billing + 27619 Schiffdorf delivery) — the subset gate just checks DE_PLZ ∈ found. Three-way DE_VAT_ID + EU_VAT_ID + SEPA_CREDITOR_ID overlap on DE987654321 same as phrase 01. Brands 'Trina Solar' / 'SMA' / 'DHL' (carrier) must stay clean — pinned by the standalone Trina/SMA negative anchor below."
+  expect: [DATE_TIME, DE_PLZ, DE_VAT_ID, EU_VAT_ID, EMAIL_ADDRESS, LOCATION, PERSON, PHONE_NUMBER]
+  notes: "Pilot phrase 10 (multi-address order). Two DE_PLZ fire (27412 Tarmstedt billing + 27619 Schiffdorf delivery) — the subset gate just checks DE_PLZ ∈ found. DE_VAT_ID + EU_VAT_ID fire on DE987654321 (EU_VAT_ID context gate satisfied by 'USt-IdNr.' / 'Rechnungsadresse'). SEPA_CREDITOR_ID previously surfaced as a subset-tolerated side-effect on the same VAT-shaped span; the SEPA context-required gate now drops it because this sales-order text contains no SEPA/Creditor/Gläubiger/Lastschrift/Mandat keyword — correct behavior (Auftragsbestätigung ≠ SEPA mandate). Brands 'Trina Solar' / 'SMA' / 'DHL' (carrier) must stay clean — pinned by the standalone Trina/SMA negative anchor below."
 
 # Brand/product/SKU/serial negative anchors. Each phrase below is a
 # PV-vocabulary-dense sentence with no PII; subset-matching alone

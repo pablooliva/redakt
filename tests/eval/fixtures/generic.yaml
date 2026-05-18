@@ -337,8 +337,8 @@
 
 - text: "Project CZ12345678 was archived last sprint."
   language: en
-  expect: [SEPA_CREDITOR_ID]
-  notes: "KNOWN_FP — should be expect_clean. EU_VAT_ID side resolved by the context-required gate in EuVatIdRecognizer (presidio fork): no VAT/USt/MwSt/invoice keyword in the text → EU_VAT_ID is dropped. Residual FP is SEPA_CREDITOR_ID at 0.85 base — the recognizer matches the country-code-prefix shape too permissively. SEPA_CREDITOR_ID base is widely tolerated across existing fixtures (subset-match) so raising the floor would regress legitimate co-occurrences. Resolution requires recognizer-level change (minimum 13+ char Creditor Identifier length OR mandatory Creditor/Gläubiger/Identifier context). Same gate pattern as EU_VAT_ID would work here."
+  expect_clean: true
+  notes: "Bare prefix+digit shape with NO PII context. Both EU_VAT_ID and SEPA_CREDITOR_ID context-required gates drop this: 'project', 'archived', 'sprint' contain none of the VAT or SEPA CONTEXT keywords (word-boundary matched, so 'vat' inside 'private' / 'dic' inside 'predict' would not falsely pass — pinned by the eu_vat_id recognizer's word-boundary regression tests). Flipped to expect_clean after the SepaCreditorIdRecognizer gate landed; previously a KNOWN_FP characterization test pinning the over-firing state."
 
 - text: "Section 4.5.6.7 of the spec covers retry semantics."
   language: en
@@ -347,5 +347,5 @@
 
 - text: "Inventory tag EE9012345 was logged at the warehouse."
   language: en
-  expect: [SEPA_CREDITOR_ID]
-  notes: "KNOWN_FP — should be expect_clean. With MEDICAL_LICENSE disabled (floor 1.01 in config.yaml) the original 1.00 MEDICAL_LICENSE FP is gone. The residual FP is SEPA_CREDITOR_ID at 0.85 base — the recognizer matches the country-code-prefix shape too permissively. SEPA_CREDITOR_ID base is widely tolerated across existing fixtures (subset-match) so raising the floor would regress legitimate co-occurrences. Resolution requires recognizer-level change (require minimum 13+ char Creditor Identifier length OR mandatory Creditor/Gläubiger/Identifier context)."
+  expect_clean: true
+  notes: "Two-layer false-positive surface, both now closed: (1) MEDICAL_LICENSE previously fired at 1.00 on the EE+7-digit substring (also the inner substring of DE_MASTR_ID 'SEE901234567890') — disabled via MEDICAL_LICENSE: 1.01 floor in config.yaml. (2) SEPA_CREDITOR_ID previously fired at 0.85 base on the country-code-prefix shape — dropped by the SepaCreditorIdRecognizer context-required gate (no SEPA/Creditor/Gläubiger/Lastschrift/Mandat keyword in the inventory text). Regression test for both fixes."
