@@ -318,7 +318,7 @@ Quasi-identifier spans (`DATE_TIME`, `LOCATION`, `NRP`, `DE_PLZ`) are suppressed
 
 | Key | Type | Default | Description |
 |---|---|---|---|
-| `closed_world_filtering` | `bool` | `false` | Enable the filter instance-wide |
+| `closed_world_filtering` | `bool` | `true` (shipped in `config.yaml` as of 2026-05-18; Pydantic schema floor is `false`) | Enable the filter instance-wide. Set to `false` in `config.yaml` or via `REDAKT_CLOSED_WORLD_FILTERING=false` to opt out. |
 | `strong_anchors` | `list[str]` | see `config.yaml` | Entity types that unlock quasi-identifier emission |
 | `quasi_identifiers` | `list[str]` | see `config.yaml` | Entity types suppressed when no anchor is present |
 | `allow_per_request_closed_world_override` | `bool` | `true` | Allow callers to override the instance default per-request |

@@ -110,3 +110,25 @@ Rejected: incorrect for the named-anchor case where quasi-identifiers materially
 - `src/redakt/config.py:60` — `allow_list` default (same layer the new filter lives at).
 - Presidio docs (`presidio/docs/`) — span-level recognizer architecture; context for why document-level reasoning lives in Redakt.
 - Privacy literature — closed-world assumption / k-anonymity / quasi-identifier joining attacks (background framing; no specific citation pinned here).
+
+## Update 2026-05-18 — shipped default flipped to enabled
+
+The shipped `config.yaml` instance default for `closed_world_filtering` is changed from `false` to `true`. The Decision section above retains the original wording because it captures the *initial shipping* posture (off, so the feature could land without changing behavior, then be activated after end-to-end verification).
+
+**Verification completed before activation:**
+- Unit + integration suite: 471/471 passing (commits `31b8d1b` core feature; `2a42457` baseline pin).
+- E2E (Playwright against the Docker compose stack): 8/8 passing.
+- Eval suite: 120/120 passing — including the four acceptance fixtures that explicitly exercise closed-world on, off, and the gameable healthcare narrative.
+- The HIPAA scope gate, the `allow_per_request_closed_world_override` operator gate, and the `StrictBool` per-request override were exercised end-to-end.
+
+**What did not change:**
+- The Pydantic schema default in `Settings.closed_world_filtering` remains `False`. The schema default is the safety floor — if an operator removes the key from `config.yaml`, deployments fall back to the safe path. The test `test_default_settings_load_cleanly` asserts this floor via `Settings.model_fields["closed_world_filtering"].default is False`.
+- The "Alternatives Considered → On by default" rationale above (rejected as a Redakt-platform principle) still applies to forks and downstream redistributions whose deployment context does not match the closed-world assumption. Operators inheriting this `config.yaml` who run agent workflows or downstream systems with their own context should explicitly set `closed_world_filtering: false`.
+- The eval suite's COMPAT-001 baseline (pre-activation behavior) is preserved at request-construction time via `Phrase.build_request_body()`'s baseline pin (`tests/eval/_loader.py`). The pre-activation contract remains testable independently of the shipped default.
+
+**Rationale for activation:**
+- The dominant deployment context (Memodo PV operator → paste-into-AI workflow) matches the closed-world assumption: the submission *is* the entirety of what the downstream consumer sees.
+- The eval suite shows that with the flag on, 12 anchor-absent phrases (e.g., "Versand voraussichtlich am 15.05.2026.", "Postleitzahl 80331 München.", "Order is scheduled for 28 March 2026 delivery") correctly suppress noisy quasi-identifier redactions — the UX win the feature was built for.
+- The HIPAA gate auto-disables closed-world filtering when `regulatory_scope` contains `HIPAA`, so the activation is incompatible with deployments that would actually violate Safe Harbor. The gate is enforced at config-load time.
+
+**Status of this ADR:** Accepted, amended in place. Not Superseded — the original rationale, the alternatives analysis, and the consequences remain authoritative. Only the shipped default value has changed.

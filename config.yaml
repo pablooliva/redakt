@@ -102,7 +102,7 @@ audit_log_backup_count: 5
 # OVERRIDE: Per-request closed_world_filtering field is enabled by default.
 # Set allow_per_request_closed_world_override: false to disable per-request
 # override at the deployment boundary (see SEC-001a).
-closed_world_filtering: false
+closed_world_filtering: true
 
 # Regulatory scope for compliance enforcement gates.
 # Include "HIPAA" to prevent enabling closed_world_filtering (Safe Harbor
