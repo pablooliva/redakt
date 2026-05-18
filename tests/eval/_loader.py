@@ -8,6 +8,15 @@ Each YAML file under tests/eval/fixtures/ is a list of phrase records:
       notes: "..."                      # optional
       request_params:                   # optional — extra fields merged into
         closed_world_filtering: true    # the /api/detect POST body
+
+Baseline invariant: `closed_world_filtering` defaults to `False` in every
+request body emitted by `Phrase.build_request_body()` unless a fixture sets
+it explicitly via `request_params`. This pins the eval suite to Redakt's
+COMPAT-001 baseline (flag-off behavior identical to today) regardless of
+the running instance's config.yaml default. The 4 closed-world acceptance
+fixtures opt in via `request_params: {closed_world_filtering: true}`; the
+116 baseline fixtures get the explicit `false` and stay deterministic
+across operator config experiments.
 """
 
 from __future__ import annotations
@@ -44,8 +53,17 @@ class Phrase:
 
         Base keys are `text` and `language`.  Any `request_params` entries
         are merged on top, with per-fixture values taking precedence.
+
+        Baseline pin: `closed_world_filtering` is set to `False` by default
+        so the suite asserts COMPAT-001 (today's behavior) regardless of
+        the running instance's config.yaml default. Fixtures opting into
+        closed-world set it explicitly via `request_params`.
         """
-        body: dict[str, Any] = {"text": self.text, "language": self.language}
+        body: dict[str, Any] = {
+            "text": self.text,
+            "language": self.language,
+            "closed_world_filtering": False,
+        }
         body.update(dict(self.request_params))
         return body
 

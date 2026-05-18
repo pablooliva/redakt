@@ -297,11 +297,19 @@ class TestConfigValidation:
         assert "DATE_TIME" in s.quasi_identifiers_set
 
     def test_default_settings_load_cleanly(self):
-        """Default Settings (no overrides) loads without error and flag defaults to False (REQ-003)."""
+        """Settings schema default for closed_world_filtering is False (REQ-003).
+
+        Asserts the schema-level default via model_fields rather than
+        Settings() instantiation, so the test is robust to operator edits
+        of the on-disk config.yaml (the live instance default may legitimately
+        differ from the schema default — see ADR-0007's default-off posture
+        as the schema-level commitment).
+        """
         from redakt.config import Settings
 
+        assert Settings.model_fields["closed_world_filtering"].default is False
+
         s = Settings()
-        assert s.closed_world_filtering is False
         assert isinstance(s.strong_anchors_set, frozenset)
         assert isinstance(s.quasi_identifiers_set, frozenset)
         assert len(s.strong_anchors_set) > 0
@@ -332,7 +340,11 @@ class TestEvalLoaderExtension:
         assert p.request_params == (("closed_world_filtering", True),)
 
     def test_build_request_body_base(self):
-        """build_request_body() returns text + language without request_params."""
+        """build_request_body() returns text + language + COMPAT-001 baseline pin.
+
+        The baseline pin (closed_world_filtering: False) makes the eval suite
+        deterministic against operator config.yaml edits.
+        """
         from tests.eval._loader import Phrase
 
         p = Phrase(
@@ -345,7 +357,11 @@ class TestEvalLoaderExtension:
             request_params=(),
         )
         body = p.build_request_body()
-        assert body == {"text": "hello world", "language": "de"}
+        assert body == {
+            "text": "hello world",
+            "language": "de",
+            "closed_world_filtering": False,
+        }
 
     def test_build_request_body_with_closed_world_param(self):
         """build_request_body() merges request_params over base keys."""
@@ -382,7 +398,7 @@ class TestEvalLoaderExtension:
         assert body["language"] == "de"
 
     def test_load_fixture_without_request_params(self, tmp_path):
-        """Phrases without request_params load cleanly with empty tuple."""
+        """Phrases without request_params load with empty tuple and baseline-pinned body."""
         import yaml
         from tests.eval._loader import _load_one
 
@@ -394,7 +410,11 @@ class TestEvalLoaderExtension:
         phrases = _load_one(f)
         assert len(phrases) == 1
         assert phrases[0].request_params == ()
-        assert phrases[0].build_request_body() == {"text": "hello", "language": "en"}
+        assert phrases[0].build_request_body() == {
+            "text": "hello",
+            "language": "en",
+            "closed_world_filtering": False,
+        }
 
     def test_load_fixture_with_closed_world_param(self, tmp_path):
         """Phrases with request_params: {closed_world_filtering: true} load correctly."""
@@ -483,10 +503,23 @@ class TestRouterIntegration:
     def test_detect_cwf_disabled_default_all_spans_returned(
         self, client, mock_presidio_analyze, mock_detect_language
     ):
-        """With CWF disabled (instance default=False), quasi spans are not suppressed."""
+        """With CWF disabled (instance default=False), quasi spans are not suppressed.
+
+        Pins settings.closed_world_filtering=False via patch.object so the
+        assertion is robust to operator config.yaml edits — the test is
+        about the disabled-path behavior, not about what the live instance
+        happens to ship.
+        """
+        from unittest.mock import patch
+
         mock_presidio_analyze.return_value = self.QUASI_ONLY_RESULTS
 
-        resp = client.post("/api/detect", json={"text": "Wetter heute in München"})
+        with patch.object(
+            __import__("redakt.routers.detect", fromlist=["settings"]).settings,
+            "closed_world_filtering",
+            new=False,
+        ):
+            resp = client.post("/api/detect", json={"text": "Wetter heute in München"})
         assert resp.status_code == 200
         data = resp.json()
         assert data["has_pii"] is True
