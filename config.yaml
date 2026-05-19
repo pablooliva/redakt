@@ -94,7 +94,16 @@ supported_file_types:
   - .rtf
   - .pdf
 
-# --- Audit log size ---
+# --- Audit log ---
+# audit_log_file: when set, redakt also writes audit lines (JSON) to this
+# path via RotatingFileHandler. When empty, stdout is the only sink and
+# audit history is gone with the container. Prod compose mounts
+# /var/log/redakt from the host so logs survive container restarts;
+# the path inside the container must match the mount point. The UID
+# of the container's redakt user is 1001 (Dockerfile:18) — the host
+# directory must be owned by 1001:1001 (or world-writable).
+# Set to "" to revert to stdout-only.
+audit_log_file: /var/log/redakt/audit.log
 audit_log_max_bytes: 10485760    # 10 MB
 audit_log_backup_count: 5
 

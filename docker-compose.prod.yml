@@ -9,6 +9,15 @@ services:
       - REDAKT_BASE_DIR=/app/src/redakt
       - REDAKT_PRESIDIO_ANALYZER_URL=http://presidio-analyzer:5001
       - REDAKT_PRESIDIO_ANONYMIZER_URL=http://presidio-anonymizer:5001
+    # Audit log persistence: redakt writes JSON audit lines to
+    # /var/log/redakt/audit.log inside the container (path set in
+    # config.yaml's audit_log_file). The mount maps that to a host
+    # directory so the log file survives container restarts. The host
+    # directory must be owned by UID 1001 (the redakt user, see
+    # Dockerfile:18) — operator must `mkdir -p /var/log/redakt &&
+    # chown 1001:1001 /var/log/redakt` on the prod host once.
+    volumes:
+      - /var/log/redakt:/var/log/redakt
     networks:
       - default
       - caddy_net
