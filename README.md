@@ -91,8 +91,9 @@ with a corresponding `--mount=type=secret,id=hf_token` in
 
 ### Production deploy (build local, stream over SSH)
 
-Production runs do not build on the server and do not pull from a
-registry. Images are built on a developer machine for `linux/amd64`,
+Production is deployed manually from the current state of the `pablo`
+branch; the GitHub repo is not used as the conduit to push to
+production. Images are built on a developer machine for `linux/amd64`,
 then `docker save | ssh | docker load` streams them straight to the
 Hetzner host. No registry, no auth tokens beyond your existing SSH key,
 no monthly storage fee.
@@ -117,7 +118,7 @@ host needs nothing else from this repo):
 ```bash
 docker network create caddy_net   # idempotent; ignore "already exists"
 # from the dev machine:
-scp docker-compose.prod.yml Hetzner-personal:~/redakt/
+scp docker-compose.prod.yml Hetzner-personal:/opt/docker/redakt/
 ```
 
 **Deploy.** From the dev machine, save + stream + load in one pipe
@@ -132,7 +133,7 @@ REDAKT_PROD_HOST=user@1.2.3.4 ./tools/deploy-prod-images.sh
 Then on the host:
 
 ```bash
-cd ~/redakt
+cd /opt/docker/redakt
 docker compose -f docker-compose.prod.yml up -d
 docker compose -f docker-compose.prod.yml ps
 ```
@@ -149,6 +150,44 @@ painful if you push multiple times per day. If deploy frequency goes
 up, switch to a self-hosted `registry:2` on the same Hetzner box
 (layer caching, no extra cost) — see git history for the prior GHCR
 flow as a reference.
+
+### Audit logs
+
+The Redakt API emits one JSON line per `/api/detect` and `/api/anonymize` request to the `redakt.audit` logger. In production this is persisted on the Hetzner host at:
+
+```
+/var/log/redakt/audit.log
+```
+
+The path is bind-mounted into the redakt container at the same location (see `docker-compose.prod.yml`'s `volumes:` entry on the redakt service). Rotation is handled by Python's `RotatingFileHandler`: **10 MB max per file × 5 backups** (configured in `config.yaml` under `audit_log_max_bytes` / `audit_log_backup_count`). When the active file hits 10 MB it rolls to `audit.log.1`, then `.2`, etc., and the oldest is discarded.
+
+One-time host setup (already applied to the current Hetzner box):
+
+```bash
+ssh Hetzner-personal '
+  mkdir -p /var/log/redakt && \
+  chown 1001:1001 /var/log/redakt
+'
+```
+
+UID 1001 matches the `redakt` user inside the container (`Dockerfile:18`). Without correct ownership the file handler fails to create, `audit.py` logs a one-line warning, and the container falls back to stdout-only logging.
+
+Useful reads:
+
+```bash
+# tail live audit JSON from the host
+ssh Hetzner-personal 'tail -f /var/log/redakt/audit.log'
+
+# rotated history
+ssh Hetzner-personal 'ls -la /var/log/redakt/'
+
+# audit + uvicorn access logs from the running container (stdout sink is still active)
+ssh Hetzner-personal 'docker logs redakt-redakt-1 --tail 50 --follow'
+```
+
+The audit logger writes **metadata only** — timestamp, action, entity-type counts, language, source, closed-world telemetry. Original text and detected PII spans are never persisted, by design (`src/redakt/services/audit.py`).
+
+In dev the directory is not mounted; `audit.py` falls back to stdout-only and logs a one-line warning at startup. Set `audit_log_file: ""` in `config.yaml` to silence the warning, or mount a local directory the way the prod compose does.
 
 ## API
 
