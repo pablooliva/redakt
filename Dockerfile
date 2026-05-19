@@ -13,6 +13,15 @@ COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 
 COPY pyproject.toml ./
 COPY src/ ./src/
+# Bake the committed runtime policy into the image so the prod compose
+# (which does not mount a host-side config.yaml) still picks up the
+# floors, closed-world settings, strong-anchors, and quasi-identifier
+# lists. Aligns with the "ship the image" deploy model: rolling back
+# config requires a rebuild, but config is committed to git anyway so
+# review-with-code is the audit trail. The dev compose's bind mount of
+# the host file takes precedence at runtime, so iteration on the host
+# still works.
+COPY config.yaml ./
 RUN uv pip install --system -e .
 
 RUN useradd -m -u 1001 redakt && chown -R redakt:redakt /app
